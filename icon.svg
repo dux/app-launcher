@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Main gradient background -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Knight gradient -->
+    <linearGradient id="knightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0e0e0;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- App icon gradients -->
+    <linearGradient id="app1Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ee5a5a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="app2Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ecdc4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3db9b1;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="app3Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffe66d;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffd93d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="app4Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#95e1d3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7ed3c4;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Drop shadow -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded square background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="url(#bgGradient)"/>
+  
+  <!-- Decorative apps grid in background -->
+  <g transform="translate(512, 512)">
+    <!-- App 1 - top left -->
+    <g transform="translate(-350, -350)">
+      <rect x="0" y="0" width="140" height="140" rx="28" fill="url(#app1Gradient)" opacity="0.6" filter="url(#shadow)"/>
+      <circle cx="70" cy="70" r="20" fill="white" opacity="0.8"/>
+    </g>
+    
+    <!-- App 2 - top right -->
+    <g transform="translate(210, -350)">
+      <rect x="0" y="0" width="140" height="140" rx="28" fill="url(#app2Gradient)" opacity="0.6" filter="url(#shadow)"/>
+      <rect x="45" y="45" width="50" height="50" rx="10" fill="white" opacity="0.8"/>
+    </g>
+    
+    <!-- App 3 - bottom left -->
+    <g transform="translate(-350, 210)">
+      <rect x="0" y="0" width="140" height="140" rx="28" fill="url(#app3Gradient)" opacity="0.6" filter="url(#shadow)"/>
+      <polygon points="70,45 95,95 45,95" fill="white" opacity="0.8"/>
+    </g>
+    
+    <!-- App 4 - bottom right -->
+    <g transform="translate(210, 210)">
+      <rect x="0" y="0" width="140" height="140" rx="28" fill="url(#app4Gradient)" opacity="0.6" filter="url(#shadow)"/>
+      <rect x="45" y="45" width="20" height="50" rx="4" fill="white" opacity="0.8"/>
+      <rect x="75" y="45" width="20" height="50" rx="4" fill="white" opacity="0.8"/>
+    </g>
+  </g>
+  
+  <!-- Stylized Knight Helmet in center -->
+  <g transform="translate(512, 512)" filter="url(#shadow)">
+    <!-- Helmet base -->
+    <path d="M -120 180 
+             L -150 100 
+             Q -180 -50 -80 -180 
+             L 0 -200 
+             L 80 -180 
+             Q 180 -50 150 100 
+             L 120 180 
+             Q 0 200 -120 180 Z" 
+          fill="url(#knightGradient)"/>
+    
+    <!-- Helmet visor -->
+    <path d="M -80 60 
+             Q -100 40 -90 -20 
+             Q -60 -80 0 -100 
+             Q 60 -80 90 -20 
+             Q 100 40 80 60 
+             Q 0 90 -80 60 Z" 
+          fill="#5a5a5a"/>
+    
+    <!-- Visor opening -->
+    <ellipse cx="0" cy="20" rx="40" ry="25" fill="#2a2a2a"/>
+    
+    <!-- Helmet visor line -->
+    <line x1="-60" y1="20" x2="60" y2="20" stroke="#888" stroke-width="3"/>
+    
+    <!-- Helmet crest/plume -->
+    <path d="M 0 -200 
+             Q -30 -250 0 -300 
+             Q 30 -250 0 -200" 
+          fill="#ff6b6b" opacity="0.8"/>
+    <path d="M 0 -200 
+             Q -40 -220 -20 -280 
+             Q 0 -240 0 -200" 
+          fill="#ee5a5a" opacity="0.6"/>
+    
+    <!-- Helmet decorations -->
+    <circle cx="-60" cy="-50" r="15" fill="#667eea" opacity="0.6"/>
+    <circle cx="60" cy="-50" r="15" fill="#667eea" opacity="0.6"/>
+    
+    <!-- Knight's mouth/nose guard -->
+    <path d="M -30 80 Q 0 70 30 80 Q 35 100 30 120 Q 0 130 -30 120 Q -35 100 -30 80 Z" 
+          fill="#d0d0d0"/>
+  </g>
+  
+  <!-- Launching apps around knight -->
+  <g filter="url(#shadow)">
+    <!-- Launching app 1 -->
+    <g transform="translate(180, 350) rotate(-15)">
+      <rect x="0" y="0" width="100" height="100" rx="20" fill="url(#app1Gradient)"/>
+      <circle cx="50" cy="50" r="15" fill="white"/>
+    </g>
+    
+    <!-- Launching app 2 -->
+    <g transform="translate(744, 350) rotate(15)">
+      <rect x="0" y="0" width="100" height="100" rx="20" fill="url(#app2Gradient)"/>
+      <rect x="30" y="30" width="40" height="40" rx="8" fill="white"/>
+    </g>
+    
+    <!-- Launching app 3 -->
+    <g transform="translate(180, 574) rotate(-10)">
+      <rect x="0" y="0" width="100" height="100" rx="20" fill="url(#app3Gradient)"/>
+      <polygon points="50,30 75,75 25,75" fill="white"/>
+    </g>
+    
+    <!-- Launching app 4 -->
+    <g transform="translate(744, 574) rotate(10)">
+      <rect x="0" y="0" width="100" height="100" rx="20" fill="url(#app4Gradient)"/>
+      <rect x="30" y="30" width="15" height="40" rx="3" fill="white"/>
+      <rect x="55" y="30" width="15" height="40" rx="3" fill="white"/>
+    </g>
+  </g>
+  
+  <!-- Sparkle effects -->
+  <g fill="white" opacity="0.8">
+    <polygon points="150,200 155,210 165,215 155,220 150,230 145,220 135,215 145,210" transform="scale(0.8)"/>
+    <polygon points="850,200 855,210 865,215 855,220 850,230 845,220 835,215 845,210" transform="scale(0.6)"/>
+    <polygon points="200,800 205,810 215,815 205,820 200,830 195,820 185,815 195,810" transform="scale(0.7)"/>
+    <polygon points="820,750 825,760 835,765 825,770 820,780 815,770 805,765 815,760" transform="scale(0.5)"/>
+  </g>
+</svg>

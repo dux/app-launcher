@@ -3,10 +3,14 @@ bin/
 release/
 
 # Compiled binary (legacy support)
-AppLauncher
+DuxAppLauncher
 
 # App bundle (legacy support)
 *.app
+
+# Icon generation intermediates
+*.iconset
+icon.svg.png
 
 # Swift Package Manager
 .build/

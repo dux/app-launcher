@@ -7,13 +7,13 @@ A simple Mac app launcher with Spotlight-like interface and history tracking.
 ```
 .
 ├── app/
-│   └── AppLauncher.swift    # Source code
+│   └── DuxAppLauncher.swift    # Source code
 ├── bin/
-│   ├── AppLauncher          # Compiled binary
-│   └── AppLauncher.app      # App bundle
+│   ├── DuxAppLauncher          # Compiled binary
+│   └── DuxAppLauncher.app      # App bundle
 ├── .gitignore
 ├── README.md
-└── run.sh                   # Build and run script
+└── run.sh                      # Build and run script
 ```
 
 ## Building and Running
@@ -45,11 +45,11 @@ just help         # Show all commands
 
 ### Manual build
 ```bash
-swiftc -parse-as-library app/AppLauncher.swift -o bin/AppLauncher
-mkdir -p bin/AppLauncher.app/Contents/MacOS
-cp bin/AppLauncher bin/AppLauncher.app/Contents/MacOS/
-cp app/Info.plist bin/AppLauncher.app/Contents/
-open bin/AppLauncher.app
+swiftc -parse-as-library app/DuxAppLauncher.swift -o bin/DuxAppLauncher
+mkdir -p bin/DuxAppLauncher.app/Contents/MacOS
+cp bin/DuxAppLauncher bin/DuxAppLauncher.app/Contents/MacOS/
+cp app/Info.plist bin/DuxAppLauncher.app/Contents/
+open bin/DuxAppLauncher.app
 ```
 
 ## Features
