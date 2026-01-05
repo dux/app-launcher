@@ -10,29 +10,34 @@ make
 
 ## Usage
 
-**Cmd+Shift+Space** - toggle launcher
-
-- Type to search apps
-- Arrow keys to navigate
-- Enter to launch
-- Esc to hide
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+Shift+Space` | Toggle launcher |
+| `Arrow keys` | Navigate list |
+| `Enter` | Launch selected |
+| `Esc` | Hide window |
 
 ## Features
 
-- Searches `/Applications`, `/System/Applications`, `~/Applications`
-- Recent apps shown on empty search
-- Optional System Settings panes search
-- Custom shell scripts in `~/.dux-app-launcher/*.sh`
-- Built-in script editor (Scripts tab)
+- Fast app search across `/Applications`, `/System/Applications`, `~/Applications`
+- Recent apps shown when search is empty
+- Optional System Settings panes (Keyboard, Display, etc.)
+- Custom shell scripts support
+- Built-in script editor
+
+## Scripts
+
+Create custom launchers in `~/.dux-app-launcher/*.sh` or use the Scripts tab.
 
 ## Config
 
-Settings stored in `~/.dux-app-launcher/.options.yaml`
+`~/.dux-app-launcher/.options.yaml`
 
 ## Build
 
-```bash
-make              # build, install, run
-make build        # build only
-make clean        # remove build artifacts
-```
+| Command | Description |
+|---------|-------------|
+| `make` | Build, install, run |
+| `make build` | Build only |
+| `make clean` | Remove artifacts |
+| `make install` | Install to /Applications |

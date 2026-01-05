@@ -2,63 +2,65 @@
 
 .PHONY: default build run install install-local clean help release
 
+APP_NAME = Dux App Launcher
+
 # Default target - install to ~/Applications and run
 default: install-local
-	@pkill -x DuxAppLauncher || true
+	@pkill -x "Dux App Launcher" || true
 	@sleep 0.5
-	@open ~/Applications/DuxAppLauncher.app
+	@open ~/Applications/"$(APP_NAME).app"
 
 # Build the app (dev mode - to bin/)
 build:
-	@echo "Building Dux App Launcher..."
-	@swiftc -parse-as-library app/DuxAppLauncher.swift -o bin/DuxAppLauncher
+	@echo "Building $(APP_NAME)..."
+	@swiftc -parse-as-library app/DuxAppLauncher.swift -o "bin/$(APP_NAME)"
 	@echo "✓ Build complete"
 
 # Install to ~/Applications and run
 install-local: build
 	@echo "Installing to ~/Applications..."
-	@mkdir -p bin/DuxAppLauncher.app/Contents/MacOS
-	@mkdir -p bin/DuxAppLauncher.app/Contents/Resources
-	@cp bin/DuxAppLauncher bin/DuxAppLauncher.app/Contents/MacOS/
-	@cp app/Info.plist bin/DuxAppLauncher.app/Contents/
-	@cp Icon.icns bin/DuxAppLauncher.app/Contents/Resources/AppIcon.icns
-	@rm bin/DuxAppLauncher
-	@rm -rf ~/Applications/DuxAppLauncher.app
-	@cp -R bin/DuxAppLauncher.app ~/Applications/DuxAppLauncher.app
-	@echo "✓ Installed to ~/Applications/DuxAppLauncher.app"
+	@mkdir -p "bin/$(APP_NAME).app/Contents/MacOS"
+	@mkdir -p "bin/$(APP_NAME).app/Contents/Resources"
+	@cp "bin/$(APP_NAME)" "bin/$(APP_NAME).app/Contents/MacOS/"
+	@cp app/Info.plist "bin/$(APP_NAME).app/Contents/"
+	@cp Icon.icns "bin/$(APP_NAME).app/Contents/Resources/AppIcon.icns"
+	@rm "bin/$(APP_NAME)"
+	@rm -rf ~/Applications/"$(APP_NAME).app"
+	@cp -R "bin/$(APP_NAME).app" ~/Applications/"$(APP_NAME).app"
+	@echo "✓ Installed to ~/Applications/$(APP_NAME).app"
 	@echo "Launching..."
-	@open -g ~/Applications/DuxAppLauncher.app
+	@open -g ~/Applications/"$(APP_NAME).app"
 
 # Run the app from ~/Applications
 run:
-	@echo "Launching ~/Applications/DuxAppLauncher.app..."
-	@open -g ~/Applications/DuxAppLauncher.app
+	@echo "Launching ~/Applications/$(APP_NAME).app..."
+	@open -g ~/Applications/"$(APP_NAME).app"
 
 # Install to /Applications
 install: build
 	@echo "Installing to /Applications..."
-	@mkdir -p bin/DuxAppLauncher.app/Contents/MacOS
-	@mkdir -p bin/DuxAppLauncher.app/Contents/Resources
-	@cp bin/DuxAppLauncher bin/DuxAppLauncher.app/Contents/MacOS/
-	@cp app/Info.plist bin/DuxAppLauncher.app/Contents/
-	@cp Icon.icns bin/DuxAppLauncher.app/Contents/Resources/AppIcon.icns
-	@rm bin/DuxAppLauncher
-	@rm -rf /Applications/DuxAppLauncher.app
-	@cp -R bin/DuxAppLauncher.app /Applications/DuxAppLauncher.app
-	@echo "✓ Installed to /Applications/DuxAppLauncher.app"
+	@mkdir -p "bin/$(APP_NAME).app/Contents/MacOS"
+	@mkdir -p "bin/$(APP_NAME).app/Contents/Resources"
+	@cp "bin/$(APP_NAME)" "bin/$(APP_NAME).app/Contents/MacOS/"
+	@cp app/Info.plist "bin/$(APP_NAME).app/Contents/"
+	@cp Icon.icns "bin/$(APP_NAME).app/Contents/Resources/AppIcon.icns"
+	@rm "bin/$(APP_NAME)"
+	@rm -rf /Applications/"$(APP_NAME).app"
+	@cp -R "bin/$(APP_NAME).app" /Applications/"$(APP_NAME).app"
+	@echo "✓ Installed to /Applications/$(APP_NAME).app"
 
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
-	@rm -rf bin/DuxAppLauncher
-	@rm -rf bin/DuxAppLauncher.app
-	@rm -rf ~/Applications/DuxAppLauncher.app
+	@rm -rf "bin/$(APP_NAME)"
+	@rm -rf "bin/$(APP_NAME).app"
+	@rm -rf ~/Applications/"$(APP_NAME).app"
 	@rm -rf .build
 	@echo "✓ Clean complete"
 
 # Show help
 help:
-	@echo "Dux App Launcher - Available targets:"
+	@echo "$(APP_NAME) - Available targets:"
 	@echo "  make           - Install to ~/Applications and run (default)"
 	@echo "  make build     - Build only (to bin/)"
 	@echo "  make run       - Run from ~/Applications"
@@ -71,5 +73,5 @@ help:
 release: install-local
 	@echo "Creating release..."
 	@mkdir -p release
-	@cp -R ~/Applications/DuxAppLauncher.app release/
+	@cp -R ~/Applications/"$(APP_NAME).app" release/
 	@echo "✓ Release built in release/"

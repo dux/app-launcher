@@ -66,7 +66,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let runningApps = NSWorkspace.shared.runningApplications
         let currentPID = ProcessInfo.processInfo.processIdentifier
 
-        if runningApps.contains(where: { $0.bundleIdentifier == "com.example.DuxAppLauncher" && $0.processIdentifier != currentPID }) {
+        if let existingApp = runningApps.first(where: { $0.bundleIdentifier == "com.example.DuxAppLauncher" && $0.processIdentifier != currentPID }) {
+            existingApp.activate()
             NSApplication.shared.terminate(nil)
         }
     }
