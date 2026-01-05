@@ -1,0 +1,40 @@
+# Binaries and app bundles
+bin/
+release/
+
+# Compiled binary (legacy support)
+AppLauncher
+
+# App bundle (legacy support)
+*.app
+
+# Swift Package Manager
+.build/
+*.swiftdoc
+*.swiftmodule
+*.swiftsourceinfo
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# User data
+.history
+.dux-launcher/
+
+# Temporary files
+tmp/
+*.tmp
+*.log
+*.swp
+*~
+
+# Clipboard
+/tmp/clipboard.png
