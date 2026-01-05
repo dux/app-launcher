@@ -174,6 +174,10 @@ struct ContentView: View {
     @State private var scriptCount = 0
     @State private var launchAtLogin = false
     @State private var includeSystemPreferences = false
+    @State private var scripts: [String] = []
+    @State private var selectedScript: String? = nil
+    @State private var scriptName = ""
+    @State private var scriptCommand = ""
     
     let fileManager = FileManager.default
     
@@ -306,6 +310,94 @@ struct ContentView: View {
                 Label("Settings", systemImage: "gearshape")
             }
             .tag(1)
+            
+            HStack(spacing: 0) {
+                // Script list
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Scripts")
+                        .font(.system(size: 14, weight: .bold))
+                        .padding(.bottom, 4)
+                    
+                    List(scripts, id: \.self, selection: $selectedScript) { script in
+                        Text(script)
+                            .font(.system(size: 12))
+                    }
+                    .listStyle(.plain)
+                    .frame(minWidth: 120)
+                    
+                    Button("New") {
+                        scriptName = ""
+                        scriptCommand = ""
+                        selectedScript = nil
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding()
+                .frame(width: 160)
+                
+                Divider()
+                
+                // Script editor
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Script Editor")
+                        .font(.system(size: 14, weight: .bold))
+                    
+                    HStack {
+                        Text("Name:")
+                            .frame(width: 60, alignment: .leading)
+                        TextField("script name", text: $scriptName)
+                            .textFieldStyle(.roundedBorder)
+                        Text(".sh")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Command:")
+                        TextEditor(text: $scriptCommand)
+                            .font(.system(size: 12, design: .monospaced))
+                            .frame(minHeight: 150)
+                            .border(Color.gray.opacity(0.3))
+                    }
+                    
+                    HStack {
+                        Button("Save") {
+                            saveScript()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(scriptName.isEmpty || scriptCommand.isEmpty)
+                        
+                        if selectedScript != nil {
+                            Button("Run") {
+                                runScript()
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Delete") {
+                                deleteScript()
+                            }
+                            .buttonStyle(.bordered)
+                            .foregroundColor(.red)
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .onAppear {
+                loadScripts()
+            }
+            .onChange(of: selectedScript) { _, newValue in
+                if let script = newValue {
+                    loadScript(script)
+                }
+            }
+            .tabItem {
+                Label("Scripts", systemImage: "terminal")
+            }
+            .tag(2)
         }
         .onAppear {
             checkLoginStatus()
@@ -510,10 +602,62 @@ struct ContentView: View {
             process.executableURL = URL(fileURLWithPath: "/bin/bash")
             process.arguments = [app.path]
             try? process.run()
+        } else if app.path.hasSuffix(".prefPane") {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-b", "com.apple.systempreferences", app.path]
+            try? process.run()
         } else {
             NSWorkspace.shared.open(URL(fileURLWithPath: app.path))
         }
         
         NSApplication.shared.windows.first?.orderOut(nil)
+        searchText = ""
+    }
+    
+    func loadScripts() {
+        scripts = []
+        if let contents = try? fileManager.contentsOfDirectory(atPath: DuxAppLauncher.MAIN_FOLDER) {
+            scripts = contents.filter { $0.hasSuffix(".sh") }
+                .map { $0.replacingOccurrences(of: ".sh", with: "") }
+                .sorted()
+        }
+    }
+    
+    func loadScript(_ name: String) {
+        let path = "\(DuxAppLauncher.MAIN_FOLDER)/\(name).sh"
+        if let content = try? String(contentsOfFile: path, encoding: .utf8) {
+            scriptName = name
+            scriptCommand = content
+        }
+    }
+    
+    func saveScript() {
+        let path = "\(DuxAppLauncher.MAIN_FOLDER)/\(scriptName).sh"
+        try? scriptCommand.write(toFile: path, atomically: true, encoding: .utf8)
+        try? fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
+        loadScripts()
+        loadApps()
+        selectedScript = scriptName
+    }
+    
+    func deleteScript() {
+        guard let script = selectedScript else { return }
+        let path = "\(DuxAppLauncher.MAIN_FOLDER)/\(script).sh"
+        try? fileManager.removeItem(atPath: path)
+        scriptName = ""
+        scriptCommand = ""
+        selectedScript = nil
+        loadScripts()
+        loadApps()
+    }
+    
+    func runScript() {
+        guard let script = selectedScript else { return }
+        let path = "\(DuxAppLauncher.MAIN_FOLDER)/\(script).sh"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = [path]
+        try? process.run()
     }
 }
