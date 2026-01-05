@@ -1,11 +1,17 @@
 import Cocoa
 import SwiftUI
 import ServiceManagement
+import Carbon.HIToolbox
+
+extension Notification.Name {
+    static let focusSearchField = Notification.Name("focusSearchField")
+}
 
 @main
 struct DuxAppLauncher: App {
-    static let MAIN_FOLDER = (NSHomeDirectory() as NSString).appendingPathComponent(".dux-launcher")
+    static let MAIN_FOLDER = (NSHomeDirectory() as NSString).appendingPathComponent(".dux-app-launcher")
     static let HISTORY_FILE = (MAIN_FOLDER as NSString).appendingPathComponent(".history")
+    static let OPTIONS_FILE = (MAIN_FOLDER as NSString).appendingPathComponent(".options.yaml")
     
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
@@ -32,7 +38,7 @@ struct DuxAppLauncher: App {
         https://github.com/dux/dux-app-launcher
         
         Usage:
-        • Cmd+Space: Toggle launcher
+        • Cmd+Shift+Space: Toggle launcher
         • Type: Search apps/scripts
         • ↑/↓: Navigate
         • Enter: Launch
@@ -54,72 +60,100 @@ struct DuxAppLauncher: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow?
-    var eventMonitor: Any?
-    
+    var hotKeyRef: EventHotKeyRef?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        let runningApps = NSWorkspace.shared.runningApplications
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+
+        if runningApps.contains(where: { $0.bundleIdentifier == "com.example.DuxAppLauncher" && $0.processIdentifier != currentPID }) {
+            NSApplication.shared.terminate(nil)
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApplication.shared.setActivationPolicy(.prohibited)
+        
+        // Register global hotkey: Cmd+Shift+Space
+        registerHotKey()
+
         DispatchQueue.main.async {
             if let win = NSApplication.shared.windows.first {
                 self.window = win
                 win.center()
-                win.level = .floating
                 win.orderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NotificationCenter.default.post(name: .focusSearchField, object: nil)
+                }
             }
         }
-        
-        setupGlobalHotkey()
     }
-    
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
-    
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag, let window = window {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NotificationCenter.default.post(name: .focusSearchField, object: nil)
+            }
         }
         return true
     }
     
-    func setupGlobalHotkey() {
-        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-            if event.modifierFlags.contains(.command) && event.keyCode == 49 {
-                self.toggleWindow()
-            }
+    func registerHotKey() {
+        // Cmd+Shift+Space hotkey
+        let hotKeyID = EventHotKeyID(signature: OSType(0x4458_4C43), id: 1) // "DXLC"
+        var hotKeyRef: EventHotKeyRef?
+        
+        // kVK_Space = 49, cmdKey = 256 (0x100), shiftKey = 512 (0x200)
+        let modifiers: UInt32 = UInt32(cmdKey | shiftKey)
+        
+        let status = RegisterEventHotKey(
+            UInt32(kVK_Space),
+            modifiers,
+            hotKeyID,
+            GetApplicationEventTarget(),
+            0,
+            &hotKeyRef
+        )
+        
+        if status == noErr {
+            self.hotKeyRef = hotKeyRef
         }
+        
+        // Install event handler
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        InstallEventHandler(GetApplicationEventTarget(), { (_, event, _) -> OSStatus in
+            var hotKeyID = EventHotKeyID()
+            GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
+            
+            if hotKeyID.id == 1 {
+                DispatchQueue.main.async {
+                    AppDelegate.toggleWindow()
+                }
+            }
+            return noErr
+        }, 1, &eventType, nil, nil)
     }
     
-    func toggleWindow() {
-        guard let window = window else { return }
+    static func toggleWindow() {
+        guard let window = NSApplication.shared.windows.first else { return }
         
-        if window.isVisible && window.isKeyWindow {
+        if window.isVisible {
             window.orderOut(nil)
         } else {
             window.center()
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                if let contentView = window.contentView,
-                   let hostingView = contentView.subviews.first,
-                   let textField = self.findTextField(in: hostingView) {
-                    window.makeFirstResponder(textField)
-                }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NotificationCenter.default.post(name: .focusSearchField, object: nil)
             }
         }
-    }
-    
-    func findTextField(in view: NSView) -> NSView? {
-        if view is NSTextField {
-            return view
-        }
-        for subview in view.subviews {
-            if let found = findTextField(in: subview) {
-                return found
-            }
-        }
-        return nil
     }
 }
 
@@ -135,22 +169,21 @@ struct ContentView: View {
     @State private var apps: [AppInfo] = []
     @State private var history: [AppInfo] = []
     @State private var selectedIndex = 0
-    @State private var showHistory = true
     @FocusState private var isFocused: Bool
     @State private var appCount = 0
     @State private var scriptCount = 0
     @State private var launchAtLogin = false
+    @State private var includeSystemPreferences = false
     
     let fileManager = FileManager.default
     
     var displayApps: [AppInfo] {
+        if searchText.isEmpty && !history.isEmpty {
+            return Array(history.prefix(5))
+        }
         if searchText.isEmpty {
-            if showHistory && !history.isEmpty {
-                return Array(history.prefix(5))
-            }
             return Array(apps.prefix(200))
         }
-        showHistory = false
         return apps.filter { app in
             app.name.localizedCaseInsensitiveContains(searchText)
         }.prefix(200).map { $0 }
@@ -166,15 +199,19 @@ struct ContentView: View {
                     .background(Color(nsColor: .textBackgroundColor))
                     .focused($isFocused)
                     .onAppear {
-                        loadApps()
-                        loadHistory()
                         createMainFolder()
+                        let prefs = loadOptions()
+                        loadApps(prefs)
+                        loadHistory()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             isFocused = true
                         }
                     }
-                    .onChange(of: searchText) { _, _ in
+                    .onChange(of: searchText) { _, newValue in
                         selectedIndex = 0
+                        if newValue.isEmpty {
+                            loadHistory()
+                        }
                     }
                 
                 if displayApps.isEmpty {
@@ -232,18 +269,37 @@ struct ContentView: View {
             }
             .tag(0)
             
-            VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("Settings")
                     .font(.system(size: 24, weight: .bold))
+                    .padding(.bottom, 8)
                 
-                Toggle("Launch at login", isOn: $launchAtLogin)
-                    .toggleStyle(.switch)
-                    .onChange(of: launchAtLogin) { _, newValue in
-                        toggleLaunchAtLogin(newValue)
-                    }
-                    .padding()
+                HStack {
+                    Toggle("", isOn: $launchAtLogin)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .onChange(of: launchAtLogin) { _, newValue in
+                            toggleLaunchAtLogin(newValue)
+                        }
+                    Text("Launch at login")
+                }
+                
+                HStack {
+                    Toggle("", isOn: $includeSystemPreferences)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .onChange(of: includeSystemPreferences) { _, newValue in
+                            saveOptions()
+                            loadApps()
+                        }
+                    Text("Include System Settings panes")
+                }
                 
                 Spacer()
+                
+                Text("Last modified: \(getAppModifiedTime())")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
             }
             .padding()
             .tabItem {
@@ -284,6 +340,9 @@ struct ContentView: View {
             NSApplication.shared.windows.first?.orderOut(nil)
             return .handled
         }
+        .onReceive(NotificationCenter.default.publisher(for: .focusSearchField)) { _ in
+            isFocused = true
+        }
     }
     
     func checkLoginStatus() {
@@ -313,10 +372,37 @@ struct ContentView: View {
         }
     }
     
-    func loadApps() {
+    func loadOptions() -> Bool {
+        guard fileManager.fileExists(atPath: DuxAppLauncher.OPTIONS_FILE),
+              let data = fileManager.contents(atPath: DuxAppLauncher.OPTIONS_FILE),
+              let content = String(data: data, encoding: .utf8) else {
+            return false
+        }
+        
+        var result = false
+        for line in content.components(separatedBy: "\n") {
+            let parts = line.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            if parts.count == 2 {
+                if parts[0] == "include_system_preferences" {
+                    result = parts[1] == "true"
+                    includeSystemPreferences = result
+                }
+            }
+        }
+        return result
+    }
+    
+    func saveOptions() {
+        let content = "include_system_preferences: \(includeSystemPreferences)"
+        try? content.write(toFile: DuxAppLauncher.OPTIONS_FILE, atomically: true, encoding: .utf8)
+    }
+    
+    func loadApps(_ includePrefs: Bool? = nil) {
         var allApps: [AppInfo] = []
         var appCountTemp = 0
         var scriptCountTemp = 0
+        
+        let shouldIncludePrefs = includePrefs ?? includeSystemPreferences
         
         let appPaths = [
             "/Applications",
@@ -354,6 +440,24 @@ struct ContentView: View {
             allApps.append(contentsOf: shellApps)
         }
         
+        // Add System Preferences panes if enabled
+        if shouldIncludePrefs {
+            let prefPanesPath = "/System/Library/PreferencePanes"
+            if let contents = try? fileManager.contentsOfDirectory(atPath: prefPanesPath) {
+                let prefPanes = contents.compactMap { fileName -> AppInfo? in
+                    if fileName.hasSuffix(".prefPane") {
+                        appCountTemp += 1
+                        let fullPath = "\(prefPanesPath)/\(fileName)"
+                        let appName = fileName.replacingOccurrences(of: ".prefPane", with: "")
+                        let icon = getAppIcon(for: fullPath)
+                        return AppInfo(name: appName, path: fullPath, icon: icon)
+                    }
+                    return nil
+                }
+                allApps.append(contentsOf: prefPanes)
+            }
+        }
+        
         apps = allApps.sorted { $0.name < $1.name }
         appCount = appCountTemp
         scriptCount = scriptCountTemp
@@ -384,6 +488,18 @@ struct ContentView: View {
     
     func getAppIcon(for path: String) -> NSImage? {
         return NSWorkspace.shared.icon(forFile: path)
+    }
+    
+    func getAppModifiedTime() -> String {
+        let appPath = Bundle.main.bundlePath
+        guard let attrs = try? fileManager.attributesOfItem(atPath: appPath),
+              let modDate = attrs[.modificationDate] as? Date else {
+            return "Unknown"
+        }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: modDate)
     }
     
     func launchApp(_ app: AppInfo) {

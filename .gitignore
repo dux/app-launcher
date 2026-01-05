@@ -31,7 +31,7 @@ DerivedData/
 
 # User data
 .history
-.dux-launcher/
+.dux-app-launcher/
 
 # Temporary files
 tmp/

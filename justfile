@@ -1,21 +1,30 @@
-# Justfile for Dux Launcher
+# Justfile for Dux App Launcher
 
-# Default target - build and run
-default: run
+# Default target - install to ~/Applications and run
+default: install-local
 
-# Build the app
+# Build the app (dev mode - to bin/)
 build:
     swiftc -parse-as-library app/DuxAppLauncher.swift -o bin/DuxAppLauncher
 
-# Run the app (builds first)
-run: build
+# Install to ~/Applications and run
+install-local: build
     mkdir -p bin/DuxAppLauncher.app/Contents/MacOS
     mkdir -p bin/DuxAppLauncher.app/Contents/Resources
     cp bin/DuxAppLauncher bin/DuxAppLauncher.app/Contents/MacOS/
     cp app/Info.plist bin/DuxAppLauncher.app/Contents/
     cp Icon.icns bin/DuxAppLauncher.app/Contents/Resources/AppIcon.icns
     rm bin/DuxAppLauncher
-    open bin/DuxAppLauncher.app
+    rm -rf ~/Applications/DuxAppLauncher.app
+    cp -R bin/DuxAppLauncher.app ~/Applications/DuxAppLauncher.app
+    echo "✓ Installed to ~/Applications/DuxAppLauncher.app"
+    echo "Launching..."
+    open -g ~/Applications/DuxAppLauncher.app
+
+# Run the app from ~/Applications
+run:
+    echo "Launching ~/Applications/DuxAppLauncher.app..."
+    open -g ~/Applications/DuxAppLauncher.app
 
 # Install to /Applications
 install: build
@@ -25,13 +34,14 @@ install: build
     cp app/Info.plist bin/DuxAppLauncher.app/Contents/
     cp Icon.icns bin/DuxAppLauncher.app/Contents/Resources/AppIcon.icns
     rm bin/DuxAppLauncher
-    rm -rf /Applications/Dux\ Launcher.app
-    cp -R bin/DuxAppLauncher.app "/Applications/Dux Launcher.app"
+    rm -rf /Applications/DuxAppLauncher.app
+    cp -R bin/DuxAppLauncher.app /Applications/DuxAppLauncher.app
 
 # Clean build artifacts
 clean:
     rm -rf bin/DuxAppLauncher
     rm -rf bin/DuxAppLauncher.app
+    rm -rf ~/Applications/DuxAppLauncher.app
     rm -rf .build
 
 # Watch and rebuild on file changes
@@ -50,10 +60,10 @@ test:
     @echo "No tests configured yet"
 
 # Create release
-release: clean build
+release: install-local
     mkdir -p release
-    cp -R bin/DuxAppLauncher.app release/
-    @echo "Release built in release/"
+    cp -R ~/Applications/DuxAppLauncher.app release/
+    echo "✓ Release built in release/"
 
 # List recipes
 list:
