@@ -54,9 +54,15 @@ open bin/AppLauncher.app
 
 ## Features
 
-- Search apps from `/Applications` folder
+- Search apps from `/Applications`, `/System/Applications`, and `~/Applications`
+- Search shell scripts in `~/.dux-launcher/`
 - Autocomplete as you type
-- Keyboard navigation (↑↓ to navigate, Enter to launch, Esc to quit)
+- Keyboard navigation (↑↓ to navigate, Enter to launch, Esc to hide)
+- Global hotkey: **Cmd+Space** to toggle launcher
+- Runs in background (use DuxAppLauncher → Quit to exit)
 - Shows app icons
 - Tracks launch history in `~/.dux-launcher/.history`
 - Displays up to 5 recently used apps when launching
+
+### Note
+Cmd+Space conflicts with macOS Spotlight. You may need to disable Spotlight's Cmd+Space shortcut in System Settings → Keyboard → Keyboard Shortcuts → Spotlight to use this hotkey.

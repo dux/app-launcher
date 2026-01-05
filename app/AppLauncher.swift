@@ -5,19 +5,71 @@ let MAIN_FOLDER = (NSHomeDirectory() as NSString).appendingPathComponent(".dux-l
 let HISTORY_FILE = (MAIN_FOLDER as NSString).appendingPathComponent(".history")
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    var window: NSWindow?
+    var eventMonitor: Any?
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         DispatchQueue.main.async {
-            if let window = NSApplication.shared.windows.first {
-                window.center()
-                window.level = .floating
-                window.orderFront(nil)
+            if let win = NSApplication.shared.windows.first {
+                self.window = win
+                win.center()
+                win.level = .floating
+                win.orderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
+            }
+        }
+        
+        setupGlobalHotkey()
+    }
+    
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
+    }
+    
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag, let window = window {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        return true
+    }
+    
+    func setupGlobalHotkey() {
+        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+            if event.modifierFlags.contains(.command) && event.keyCode == 49 {
+                self.toggleWindow()
             }
         }
     }
     
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        return true
+    func toggleWindow() {
+        guard let window = window else { return }
+        
+        if window.isVisible {
+            window.orderOut(nil)
+        } else {
+            window.center()
+            window.orderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            
+            if let contentView = window.contentView,
+               let hostingView = contentView.subviews.first,
+               let textField = findTextField(in: hostingView) {
+                window.makeFirstResponder(textField)
+            }
+        }
+    }
+    
+    func findTextField(in view: NSView) -> NSView? {
+        if view is NSTextField {
+            return view
+        }
+        for subview in view.subviews {
+            if let found = findTextField(in: subview) {
+                return found
+            }
+        }
+        return nil
     }
 }
 
@@ -143,7 +195,7 @@ struct ContentView: View {
             return .handled
         }
         .onKeyPress(.escape) {
-            NSApplication.shared.terminate(nil)
+            NSApplication.shared.windows.first?.orderOut(nil)
             return .handled
         }
     }
@@ -239,7 +291,7 @@ struct ContentView: View {
             NSWorkspace.shared.open(URL(fileURLWithPath: app.path))
         }
         
-        NSApplication.shared.terminate(nil)
+        NSApplication.shared.windows.first?.orderOut(nil)
     }
 }
 
@@ -258,6 +310,11 @@ struct AppLauncher: App {
                 Button(action: showAbout) {
                     Text("About")
                 }
+                Divider()
+                Button(action: quitApp) {
+                    Text("Quit")
+                }
+                .keyboardShortcut("Q")
             }
         }
     }
@@ -265,9 +322,13 @@ struct AppLauncher: App {
     func showAbout() {
         let alert = NSAlert()
         alert.messageText = "DuxAppLauncher"
-        alert.informativeText = "Made by Dino Reic\n\nhttps://github.com/dux/dux-app-launcher"
+        alert.informativeText = "Made by Dino Reic\n\nhttps://github.com/dux/dux-app-launcher\n\nToggle with Cmd+Space"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+    
+    func quitApp() {
+        NSApplication.shared.terminate(nil)
     }
 }
