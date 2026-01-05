@@ -322,7 +322,25 @@ struct AppLauncher: App {
     func showAbout() {
         let alert = NSAlert()
         alert.messageText = "DuxAppLauncher"
-        alert.informativeText = "Made by Dino Reic\n\nhttps://github.com/dux/dux-app-launcher\n\nToggle with Cmd+Space"
+        alert.informativeText = """
+        Made by Dino Reic
+        https://github.com/dux/dux-app-launcher
+        
+        Usage:
+        • Cmd+Space: Toggle launcher
+        • Type: Search apps/scripts
+        • ↑/↓: Navigate
+        • Enter: Launch
+        • Esc: Hide window
+        
+        Sources:
+        • /Applications
+        • /System/Applications
+        • ~/Applications
+        • ~/.dux-launcher/*.sh
+        
+        App runs in background. Quit via DuxAppLauncher menu.
+        """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
