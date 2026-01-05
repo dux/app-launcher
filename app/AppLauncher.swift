@@ -33,6 +33,9 @@ struct ContentView: View {
     @State private var history: [AppInfo] = []
     @State private var selectedIndex = 0
     @State private var showHistory = true
+    @FocusState private var isFocused: Bool
+    @State private var appCount = 0
+    @State private var scriptCount = 0
     
     let fileManager = FileManager.default
     
@@ -41,12 +44,12 @@ struct ContentView: View {
             if showHistory && !history.isEmpty {
                 return Array(history.prefix(5))
             }
-            return Array(apps.prefix(10))
+            return Array(apps.prefix(200))
         }
         showHistory = false
         return apps.filter { app in
             app.name.localizedCaseInsensitiveContains(searchText)
-        }.prefix(10).map { $0 }
+        }.prefix(200).map { $0 }
     }
     
     var body: some View {
@@ -56,10 +59,14 @@ struct ContentView: View {
                 .padding(12)
                 .font(.system(size: 14))
                 .background(Color(nsColor: .textBackgroundColor))
+                .focused($isFocused)
                 .onAppear {
                     loadApps()
                     loadHistory()
                     createMainFolder()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        isFocused = true
+                    }
                 }
                 .onChange(of: searchText) { _, _ in
                     selectedIndex = 0
@@ -115,6 +122,7 @@ struct ContentView: View {
                 .listStyle(.plain)
             }
         }
+        .navigationTitle("DuxAppLauncher - \(appCount) apps & \(scriptCount) scripts")
         .background(Color(nsColor: .windowBackgroundColor))
         .onKeyPress(.downArrow) {
             if selectedIndex < displayApps.count - 1 {
@@ -148,6 +156,8 @@ struct ContentView: View {
     
     func loadApps() {
         var allApps: [AppInfo] = []
+        var appCountTemp = 0
+        var scriptCountTemp = 0
         
         let appPaths = [
             "/Applications",
@@ -159,6 +169,7 @@ struct ContentView: View {
             if let contents = try? fileManager.contentsOfDirectory(atPath: appPath) {
                 let folderApps = contents.compactMap { fileName -> AppInfo? in
                     if fileName.hasSuffix(".app") {
+                        appCountTemp += 1
                         let fullPath = "\(appPath)/\(fileName)"
                         if let appName = fileName.dropLast(4).description as String? {
                             let icon = getAppIcon(for: fullPath)
@@ -174,6 +185,7 @@ struct ContentView: View {
         if let contents = try? fileManager.contentsOfDirectory(atPath: MAIN_FOLDER) {
             let shellApps = contents.compactMap { fileName -> AppInfo? in
                 if fileName.hasSuffix(".sh") {
+                    scriptCountTemp += 1
                     let fullPath = "\(MAIN_FOLDER)/\(fileName)"
                     let appName = fileName.replacingOccurrences(of: ".sh", with: "")
                     return AppInfo(name: appName, path: fullPath, icon: nil)
@@ -184,6 +196,8 @@ struct ContentView: View {
         }
         
         apps = allApps.sorted { $0.name < $1.name }
+        appCount = appCountTemp
+        scriptCount = scriptCountTemp
     }
     
     func loadHistory() {
@@ -237,8 +251,23 @@ struct AppLauncher: App {
         WindowGroup {
             ContentView()
         }
-        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         .defaultSize(width: 500, height: 400)
+        .commands {
+            CommandMenu("DuxAppLauncher") {
+                Button(action: showAbout) {
+                    Text("About")
+                }
+            }
+        }
+    }
+    
+    func showAbout() {
+        let alert = NSAlert()
+        alert.messageText = "DuxAppLauncher"
+        alert.informativeText = "Made by Dino Reic\n\nhttps://github.com/dux/dux-app-launcher"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }
