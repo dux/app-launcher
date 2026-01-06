@@ -1,13 +1,6 @@
 import SwiftUI
 import Cocoa
 
-// Notifications for keyboard navigation from parent
-extension Notification.Name {
-    static let searchNavigateDown = Notification.Name("searchNavigateDown")
-    static let searchNavigateUp = Notification.Name("searchNavigateUp")
-    static let searchLaunchSelected = Notification.Name("searchLaunchSelected")
-}
-
 struct SearchPanel: View {
     @State private var searchText = ""
     @State private var apps: [AppInfo] = []
@@ -16,10 +9,10 @@ struct SearchPanel: View {
     @State private var appCount = 0
     @State private var scriptCount = 0
     @State private var includeSystemPreferences = false
+    @State private var includeSystemCommands = false
     @FocusState private var isFocused: Bool
     
     var onSettingsLoaded: ((Bool) -> Void)?
-    var onAppsReloaded: (() -> Void)?
     
     var displayApps: [AppInfo] {
         if searchText.isEmpty && !history.isEmpty {
@@ -43,10 +36,11 @@ struct SearchPanel: View {
                 .focused($isFocused)
                 .onAppear {
                     AppUtils.createMainFolder()
-                    let prefs = AppUtils.loadOptions()
-                    includeSystemPreferences = prefs.includeSystemPreferences
-                    onSettingsLoaded?(prefs.includeSystemPreferences)
-                    reloadApps(prefs.includeSystemPreferences)
+                    let opts = AppUtils.loadOptions()
+                    includeSystemPreferences = opts.includeSystemPreferences
+                    includeSystemCommands = opts.includeSystemCommands
+                    onSettingsLoaded?(opts.includeSystemPreferences)
+                    reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
                     history = AppUtils.loadHistory()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isFocused = true
@@ -107,19 +101,20 @@ struct SearchPanel: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
             // Re-read options since settings may have changed
-            let prefs = AppUtils.loadOptions()
-            includeSystemPreferences = prefs.includeSystemPreferences
-            reloadApps(prefs.includeSystemPreferences)
+            let opts = AppUtils.loadOptions()
+            includeSystemPreferences = opts.includeSystemPreferences
+            includeSystemCommands = opts.includeSystemCommands
+            reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
         }
     }
     
-    func reloadApps(_ includePrefs: Bool? = nil) {
+    func reloadApps(_ includePrefs: Bool? = nil, _ includeCommands: Bool? = nil) {
         let shouldIncludePrefs = includePrefs ?? includeSystemPreferences
-        let result = AppUtils.loadApps(includeSystemPreferences: shouldIncludePrefs)
+        let shouldIncludeCommands = includeCommands ?? includeSystemCommands
+        let result = AppUtils.loadApps(includeSystemPreferences: shouldIncludePrefs, includeSystemCommands: shouldIncludeCommands)
         apps = result.apps
         appCount = result.appCount
         scriptCount = result.scriptCount
-        onAppsReloaded?()
     }
     
     func launchSelectedApp() {

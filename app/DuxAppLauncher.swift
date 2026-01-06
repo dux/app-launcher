@@ -29,19 +29,27 @@ struct DuxAppLauncher: App {
         https://github.com/dux/dux-app-launcher
 
         Usage:
-        • Cmd+Space: Toggle launcher
+        • Cmd+Space / Cmd+Shift+Space: Toggle launcher
         • Type: Search apps/scripts
-        • ↑/↓: Navigate
-        • Enter: Launch
+        • ←/→: Switch tabs (Search/Settings/Scripts)
+        • ↑/↓: Navigate list
+        • Enter: Launch selected
         • Esc: Hide window
+
+        Features:
+        • Fast app search across Applications folders
+        • Recent apps history (last 5)
+        • Optional System Settings panes
+        • Optional System Commands (Sleep, Lock, Restart, Shutdown)
+        • Custom shell scripts support
+        • Semi-transparent window
+        • Optional menu bar icon
 
         Sources:
         • /Applications
         • /System/Applications
         • ~/Applications
-        • ~/.dux-launcher/*.sh
-
-        Requires Accessibility permission for Cmd+Space shortcut.
+        • ~/.dux-app-launcher/*.sh
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
@@ -112,6 +120,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
             if let win = NSApplication.shared.windows.first {
                 self.window = win
+
+                // Set window transparency
+                // win.alphaValue = 0.96
+                // win.isOpaque = true
 
                 // Hide traffic light buttons (close, minimize, zoom)
                 // win.standardWindowButton(.closeButton)?.isHidden = true
@@ -240,17 +252,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    @discardableResult
-    func handleHotKey(_ event: NSEvent) -> Bool {
-        // Check for Cmd+Space (keyCode 49 = Space)
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if event.keyCode == 49 && flags == .command {
-            AppDelegate.showWindow()
-            return true
-        }
-        return false
-    }
-
     static func showWindow() {
         guard let window = NSApplication.shared.windows.first else { return }
         window.center()
@@ -271,6 +272,7 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var launchAtLogin = false
     @State private var includeSystemPreferences = false
+    @State private var includeSystemCommands = false
     @State private var showMenuBarIcon = true
 
     var body: some View {
@@ -289,6 +291,7 @@ struct ContentView: View {
             SettingsPanel(
                 launchAtLogin: $launchAtLogin,
                 includeSystemPreferences: $includeSystemPreferences,
+                includeSystemCommands: $includeSystemCommands,
                 showMenuBarIcon: $showMenuBarIcon,
                 onSettingsChanged: {
                     NotificationCenter.default.post(name: .reloadApps, object: nil)

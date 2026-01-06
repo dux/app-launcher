@@ -8,6 +8,9 @@ extension Notification.Name {
     static let switchTabLeft = Notification.Name("switchTabLeft")
     static let switchTabRight = Notification.Name("switchTabRight")
     static let toggleMenuBarIcon = Notification.Name("toggleMenuBarIcon")
+    static let searchNavigateDown = Notification.Name("searchNavigateDown")
+    static let searchNavigateUp = Notification.Name("searchNavigateUp")
+    static let searchLaunchSelected = Notification.Name("searchLaunchSelected")
 }
 
 // MARK: - Constants
@@ -22,6 +25,12 @@ struct AppInfo {
     let name: String
     let path: String
     let icon: NSImage?
+}
+
+struct AppOptions {
+    var includeSystemPreferences: Bool
+    var showMenuBarIcon: Bool
+    var includeSystemCommands: Bool
 }
 
 // MARK: - Shared Views
@@ -89,38 +98,41 @@ struct AppUtils {
         return NSWorkspace.shared.icon(forFile: path)
     }
     
-    static func loadOptions() -> (includeSystemPreferences: Bool, showMenuBarIcon: Bool) {
+    static func loadOptions() -> AppOptions {
         guard fileManager.fileExists(atPath: AppConstants.OPTIONS_FILE),
               let data = fileManager.contents(atPath: AppConstants.OPTIONS_FILE),
               let content = String(data: data, encoding: .utf8) else {
-            return (false, true)
+            return AppOptions(includeSystemPreferences: false, showMenuBarIcon: true, includeSystemCommands: false)
         }
         
-        var includeSystemPreferences = false
-        var showMenuBarIcon = true
+        var options = AppOptions(includeSystemPreferences: false, showMenuBarIcon: true, includeSystemCommands: false)
         for line in content.components(separatedBy: "\n") {
-            let parts = line.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            let parts = line.split(separator: ":", maxSplits:1).map { $0.trimmingCharacters(in: .whitespaces) }
             if parts.count == 2 {
                 if parts[0] == "include_system_preferences" {
-                    includeSystemPreferences = parts[1] == "true"
+                    options.includeSystemPreferences = parts[1] == "true"
                 }
                 if parts[0] == "show_menu_bar_icon" {
-                    showMenuBarIcon = parts[1] == "true"
+                    options.showMenuBarIcon = parts[1] == "true"
+                }
+                if parts[0] == "include_system_commands" {
+                    options.includeSystemCommands = parts[1] == "true"
                 }
             }
         }
-        return (includeSystemPreferences, showMenuBarIcon)
+        return options
     }
     
-    static func saveOptions(includeSystemPreferences: Bool, showMenuBarIcon: Bool) {
+    static func saveOptions(_ options: AppOptions) {
         let content = """
-        include_system_preferences: \(includeSystemPreferences)
-        show_menu_bar_icon: \(showMenuBarIcon)
+        include_system_preferences: \(options.includeSystemPreferences)
+        show_menu_bar_icon: \(options.showMenuBarIcon)
+        include_system_commands: \(options.includeSystemCommands)
         """
         try? content.write(toFile: AppConstants.OPTIONS_FILE, atomically: true, encoding: .utf8)
     }
     
-    static func loadApps(includeSystemPreferences: Bool) -> (apps: [AppInfo], appCount: Int, scriptCount: Int) {
+    static func loadApps(includeSystemPreferences: Bool, includeSystemCommands: Bool) -> (apps: [AppInfo], appCount: Int, scriptCount: Int) {
         var allApps: [AppInfo] = []
         var appCountTemp = 0
         var scriptCountTemp = 0
@@ -177,6 +189,11 @@ struct AppUtils {
                 }
                 allApps.append(contentsOf: prefPanes)
             }
+        }
+        
+        // Add System Commands if enabled
+        if includeSystemCommands {
+            allApps.append(contentsOf: getSystemCommands())
         }
         
         return (allApps.sorted { $0.name < $1.name }, appCountTemp, scriptCountTemp)
@@ -266,7 +283,7 @@ struct AppUtils {
     static func saveHistory(_ app: AppInfo, currentHistory: [AppInfo]) {
         var newHistory = currentHistory.map { $0.path }.filter { $0 != app.path }
         newHistory.insert(app.path, at: 0)
-        newHistory = Array(newHistory.prefix(4))
+        newHistory = Array(newHistory.prefix(5))
         
         let historyString = newHistory.joined(separator: "\n")
         try? historyString.write(toFile: AppConstants.HISTORY_FILE, atomically: true, encoding: .utf8)
@@ -275,21 +292,18 @@ struct AppUtils {
     static func launchApp(_ app: AppInfo, history: [AppInfo], onComplete: @escaping () -> Void) {
         saveHistory(app, currentHistory: history)
         
-        if app.path.hasSuffix(".sh") {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = [app.path]
-            try? process.run()
+        NSApplication.shared.windows.first?.orderOut(nil)
+        
+        if app.path.hasPrefix("system:") {
+            executeSystemCommand(app.path)
+        } else if app.path.hasSuffix(".sh") {
+            runProcess("/bin/bash", [app.path])
         } else if app.path.hasSuffix(".prefPane") {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            process.arguments = ["-b", "com.apple.systempreferences", app.path]
-            try? process.run()
+            runProcess("/usr/bin/open", ["-b", "com.apple.systempreferences", app.path])
         } else {
             NSWorkspace.shared.open(URL(fileURLWithPath: app.path))
         }
         
-        NSApplication.shared.windows.first?.orderOut(nil)
         onComplete()
     }
     
@@ -324,5 +338,49 @@ struct AppUtils {
             let folderUrl = url.deletingLastPathComponent()
             NSWorkspace.shared.open(folderUrl)
         }
+    }
+    
+    static func getSystemCommands() -> [AppInfo] {
+        return [
+            AppInfo(name: "Sleep", path: "system:sleep", icon: createSystemCommandIcon("moon.zzz.fill")),
+            AppInfo(name: "Lock Screen", path: "system:lock", icon: createSystemCommandIcon("lock")),
+            AppInfo(name: "Restart", path: "system:restart", icon: createSystemCommandIcon("arrow.clockwise")),
+            AppInfo(name: "Shutdown", path: "system:shutdown", icon: createSystemCommandIcon("power"))
+        ]
+    }
+    
+    static func runProcess(_ executable: String, _ arguments: [String]) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        try? process.run()
+    }
+    
+    static func runAppleScript(_ script: String) {
+        runProcess("/usr/bin/osascript", ["-e", script])
+    }
+    
+    static func executeSystemCommand(_ path: String) {
+        switch path {
+        case "system:sleep":
+            // Put display to sleep using pmset
+            runProcess("/usr/bin/pmset", ["displaysleepnow"])
+        case "system:lock":
+            runAppleScript("tell application \"System Events\" to keystroke \"q\" using {command down, control down}")
+        case "system:restart":
+            runAppleScript("tell application \"System Events\" to restart")
+        case "system:shutdown":
+            runAppleScript("tell application \"System Events\" to shut down")
+        default:
+            break
+        }
+    }
+    
+    static func createSystemCommandIcon(_ symbolName: String) -> NSImage? {
+        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: symbolName) {
+            let config = NSImage.SymbolConfiguration(pointSize: 32, weight: .regular)
+            return image.withSymbolConfiguration(config)
+        }
+        return nil
     }
 }

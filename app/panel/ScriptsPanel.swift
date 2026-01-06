@@ -9,8 +9,6 @@ struct ScriptsPanel: View {
     
     var onScriptsChanged: () -> Void
     
-    let fileManager = FileManager.default
-    
     var body: some View {
         HStack(spacing: 0) {
             // Script list
@@ -116,7 +114,7 @@ struct ScriptsPanel: View {
         // Ensure folder exists
         AppUtils.createMainFolder()
         
-        if let contents = try? fileManager.contentsOfDirectory(atPath: AppConstants.MAIN_FOLDER) {
+        if let contents = try? AppUtils.fileManager.contentsOfDirectory(atPath: AppConstants.MAIN_FOLDER) {
             scripts = contents.filter { $0.hasSuffix(".sh") }
                 .map { $0.replacingOccurrences(of: ".sh", with: "") }
                 .sorted()
@@ -136,7 +134,7 @@ struct ScriptsPanel: View {
     func saveScript() {
         let path = "\(AppConstants.MAIN_FOLDER)/\(scriptName).sh"
         try? scriptCommand.write(toFile: path, atomically: true, encoding: .utf8)
-        try? fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
+        try? AppUtils.fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
         loadScripts()
         onScriptsChanged()
         selectedScript = scriptName
@@ -145,7 +143,7 @@ struct ScriptsPanel: View {
     func deleteScript() {
         guard let script = selectedScript else { return }
         let path = "\(AppConstants.MAIN_FOLDER)/\(script).sh"
-        try? fileManager.removeItem(atPath: path)
+        try? AppUtils.fileManager.removeItem(atPath: path)
         scriptName = ""
         scriptCommand = ""
         selectedScript = nil
@@ -156,9 +154,6 @@ struct ScriptsPanel: View {
     func runScript() {
         guard let script = selectedScript else { return }
         let path = "\(AppConstants.MAIN_FOLDER)/\(script).sh"
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = [path]
-        try? process.run()
+        AppUtils.runProcess("/bin/bash", [path])
     }
 }
