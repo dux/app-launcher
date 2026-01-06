@@ -1,18 +1,9 @@
 import Cocoa
 import SwiftUI
-import ServiceManagement
 import Carbon.HIToolbox
-
-extension Notification.Name {
-    static let focusSearchField = Notification.Name("focusSearchField")
-}
 
 @main
 struct DuxAppLauncher: App {
-    static let MAIN_FOLDER = (NSHomeDirectory() as NSString).appendingPathComponent(".dux-app-launcher")
-    static let HISTORY_FILE = (MAIN_FOLDER as NSString).appendingPathComponent(".history")
-    static let OPTIONS_FILE = (MAIN_FOLDER as NSString).appendingPathComponent(".options.yaml")
-    
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
@@ -38,7 +29,7 @@ struct DuxAppLauncher: App {
         https://github.com/dux/dux-app-launcher
         
         Usage:
-        • Cmd+Shift+Space: Toggle launcher
+        • Cmd+Space: Toggle launcher
         • Type: Search apps/scripts
         • ↑/↓: Navigate
         • Enter: Launch
@@ -50,7 +41,7 @@ struct DuxAppLauncher: App {
         • ~/Applications
         • ~/.dux-launcher/*.sh
         
-        App runs in background. Quit via DuxAppLauncher menu.
+        Requires Accessibility permission for Cmd+Space shortcut.
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
@@ -60,7 +51,10 @@ struct DuxAppLauncher: App {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow?
+    var statusItem: NSStatusItem?
     var hotKeyRef: EventHotKeyRef?
+    var hotKeyRef2: EventHotKeyRef?
+    var tabMonitor: Any?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         let runningApps = NSWorkspace.shared.runningApplications
@@ -73,11 +67,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApplication.shared.setActivationPolicy(.prohibited)
+        NSApplication.shared.setActivationPolicy(.accessory)
         
-        // Register global hotkey: Cmd+Shift+Space
+        // Setup menu bar icon based on saved preference
+        let options = AppUtils.loadOptions()
+        if options.showMenuBarIcon {
+            setupStatusItem()
+        }
+        
+        // Listen for menu bar icon toggle
+        NotificationCenter.default.addObserver(forName: .toggleMenuBarIcon, object: nil, queue: .main) { [weak self] notification in
+            if let show = notification.object as? Bool {
+                if show {
+                    self?.setupStatusItem()
+                } else {
+                    self?.removeStatusItem()
+                }
+            }
+        }
+        
+        // Register global hotkey: Cmd+Space
         registerHotKey()
 
+        // Add local event monitor for Tab and Escape keys
+        tabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Tab key = keyCode 48
+            if event.keyCode == 48 {
+                NotificationCenter.default.post(name: .switchTab, object: nil)
+                return nil // Consume the event
+            }
+            // Escape key = keyCode 53
+            if event.keyCode == 53 {
+                AppDelegate.hideWindow()
+                return nil // Consume the event
+            }
+            return event
+        }
+        
         DispatchQueue.main.async {
             if let win = NSApplication.shared.windows.first {
                 self.window = win
@@ -89,6 +115,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+    
+    func setupStatusItem() {
+        if statusItem != nil { return } // Already set up
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        
+        if let button = statusItem?.button {
+            button.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Dux Launcher")
+            button.action = #selector(statusItemClicked)
+            button.target = self
+        }
+    }
+    
+    func removeStatusItem() {
+        if let item = statusItem {
+            NSStatusBar.system.removeStatusItem(item)
+            statusItem = nil
+        }
+    }
+    
+    @objc func statusItemClicked() {
+        AppDelegate.showWindow()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -107,558 +155,143 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func registerHotKey() {
-        // Cmd+Shift+Space hotkey
-        let hotKeyID = EventHotKeyID(signature: OSType(0x4458_4C43), id: 1) // "DXLC"
-        var hotKeyRef: EventHotKeyRef?
+        // Use Carbon API for reliable global hotkey (no Accessibility permission needed)
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         
-        // kVK_Space = 49, cmdKey = 256 (0x100), shiftKey = 512 (0x200)
-        let modifiers: UInt32 = UInt32(cmdKey | shiftKey)
+        // Install handler (shared for both hotkeys)
+        InstallEventHandler(GetApplicationEventTarget(), { (_, event, _) -> OSStatus in
+            AppDelegate.showWindow()
+            return noErr
+        }, 1, &eventType, nil, nil)
         
-        let status = RegisterEventHotKey(
+        // Register Cmd+Space
+        let hotKeyID1 = EventHotKeyID(signature: OSType(0x444C4348), id: 1) // "DLCH"
+        RegisterEventHotKey(
             UInt32(kVK_Space),
-            modifiers,
-            hotKeyID,
+            UInt32(cmdKey),
+            hotKeyID1,
             GetApplicationEventTarget(),
             0,
             &hotKeyRef
         )
         
-        if status == noErr {
-            self.hotKeyRef = hotKeyRef
-        }
-        
-        // Install event handler
-        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { (_, event, _) -> OSStatus in
-            var hotKeyID = EventHotKeyID()
-            GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
-            
-            if hotKeyID.id == 1 {
-                DispatchQueue.main.async {
-                    AppDelegate.toggleWindow()
-                }
-            }
-            return noErr
-        }, 1, &eventType, nil, nil)
+        // Register Shift+Cmd+Space (fallback if Spotlight uses Cmd+Space)
+        let hotKeyID2 = EventHotKeyID(signature: OSType(0x444C4348), id: 2)
+        RegisterEventHotKey(
+            UInt32(kVK_Space),
+            UInt32(cmdKey | shiftKey),
+            hotKeyID2,
+            GetApplicationEventTarget(),
+            0,
+            &hotKeyRef2
+        )
     }
     
-    static func toggleWindow() {
+    @discardableResult
+    func handleHotKey(_ event: NSEvent) -> Bool {
+        // Check for Cmd+Space (keyCode 49 = Space)
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if event.keyCode == 49 && flags == .command {
+            AppDelegate.showWindow()
+            return true
+        }
+        return false
+    }
+    
+    static func showWindow() {
         guard let window = NSApplication.shared.windows.first else { return }
-        
-        if window.isVisible {
-            window.orderOut(nil)
-        } else {
-            window.center()
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                NotificationCenter.default.post(name: .focusSearchField, object: nil)
-            }
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NotificationCenter.default.post(name: .focusSearchField, object: nil)
         }
     }
-}
-
-struct AppInfo {
-    let name: String
-    let path: String
-    let icon: NSImage?
+    
+    static func hideWindow() {
+        NSApplication.shared.windows.first?.orderOut(nil)
+        NSApp.hide(nil)
+    }
 }
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    @State private var searchText = ""
-    @State private var apps: [AppInfo] = []
-    @State private var history: [AppInfo] = []
-    @State private var selectedIndex = 0
-    @FocusState private var isFocused: Bool
-    @State private var appCount = 0
-    @State private var scriptCount = 0
     @State private var launchAtLogin = false
     @State private var includeSystemPreferences = false
-    @State private var scripts: [String] = []
-    @State private var selectedScript: String? = nil
-    @State private var scriptName = ""
-    @State private var scriptCommand = ""
-    
-    let fileManager = FileManager.default
-    
-    var displayApps: [AppInfo] {
-        if searchText.isEmpty && !history.isEmpty {
-            return Array(history.prefix(5))
-        }
-        if searchText.isEmpty {
-            return Array(apps.prefix(200))
-        }
-        return apps.filter { app in
-            app.name.localizedCaseInsensitiveContains(searchText)
-        }.prefix(200).map { $0 }
-    }
+    @State private var showMenuBarIcon = true
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            VStack(spacing: 0) {
-                TextField("Search \(appCount) apps & \(scriptCount) scripts...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .padding(12)
-                    .font(.system(size: 14))
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .focused($isFocused)
-                    .onAppear {
-                        createMainFolder()
-                        let prefs = loadOptions()
-                        loadApps(prefs)
-                        loadHistory()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            isFocused = true
-                        }
-                    }
-                    .onChange(of: searchText) { _, newValue in
-                        selectedIndex = 0
-                        if newValue.isEmpty {
-                            loadHistory()
-                        }
-                    }
-                
-                if displayApps.isEmpty {
-                    Text("No apps found")
-                        .foregroundColor(.secondary)
-                        .padding()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List(0..<displayApps.count, id: \.self) { index in
-                        HStack {
-                            if let icon = displayApps[index].icon {
-                                Image(nsImage: icon)
-                                    .resizable()
-                                    .frame(width: 48, height: 48)
-                            } else {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 48, height: 48)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(displayApps[index].name)
-                                    .font(.system(size: 13))
-                                Text(displayApps[index].path.hasPrefix(NSHomeDirectory()) ? displayApps[index].path.replacingOccurrences(of: NSHomeDirectory(), with: "~") : displayApps[index].path)
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                        }
-                        .padding(.vertical, 2)
-                        .padding(.leading, 3)
-                        .listRowSeparator(.hidden)
-                        .background(
-                            Group {
-                                if index == selectedIndex {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.accentColor.opacity(0.2))
-                                }
-                            }
-                        )
-                        .onTapGesture {
-                            selectedIndex = index
-                        }
-                        .onAppear {
-                            if index == 0 {
-                                selectedIndex = 0
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
+            SearchPanel(
+                onSettingsLoaded: { prefs in
+                    includeSystemPreferences = prefs
+                    showMenuBarIcon = AppUtils.loadOptions().showMenuBarIcon
                 }
-            }
+            )
             .tabItem {
                 Label("Search", systemImage: "magnifyingglass")
             }
             .tag(0)
             
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Settings")
-                    .font(.system(size: 24, weight: .bold))
-                    .padding(.bottom, 8)
-                
-                HStack {
-                    Toggle("", isOn: $launchAtLogin)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .onChange(of: launchAtLogin) { _, newValue in
-                            toggleLaunchAtLogin(newValue)
-                        }
-                    Text("Launch at login")
+            SettingsPanel(
+                launchAtLogin: $launchAtLogin,
+                includeSystemPreferences: $includeSystemPreferences,
+                showMenuBarIcon: $showMenuBarIcon,
+                onSettingsChanged: {
+                    NotificationCenter.default.post(name: .reloadApps, object: nil)
                 }
-                
-                HStack {
-                    Toggle("", isOn: $includeSystemPreferences)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .onChange(of: includeSystemPreferences) { _, newValue in
-                            saveOptions()
-                            loadApps()
-                        }
-                    Text("Include System Settings panes")
-                }
-                
-                Spacer()
-                
-                Text("Last modified: \(getAppModifiedTime())")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
-            .padding()
+            )
             .tabItem {
                 Label("Settings", systemImage: "gearshape")
             }
             .tag(1)
             
-            HStack(spacing: 0) {
-                // Script list
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Scripts")
-                        .font(.system(size: 14, weight: .bold))
-                        .padding(.bottom, 4)
-                    
-                    List(scripts, id: \.self, selection: $selectedScript) { script in
-                        Text(script)
-                            .font(.system(size: 12))
-                    }
-                    .listStyle(.plain)
-                    .frame(minWidth: 120)
-                    
-                    Button("New") {
-                        scriptName = ""
-                        scriptCommand = ""
-                        selectedScript = nil
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .padding()
-                .frame(width: 160)
-                
-                Divider()
-                
-                // Script editor
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Script Editor")
-                        .font(.system(size: 14, weight: .bold))
-                    
-                    HStack {
-                        Text("Name:")
-                            .frame(width: 60, alignment: .leading)
-                        TextField("script name", text: $scriptName)
-                            .textFieldStyle(.roundedBorder)
-                        Text(".sh")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Command:")
-                        TextEditor(text: $scriptCommand)
-                            .font(.system(size: 12, design: .monospaced))
-                            .frame(minHeight: 150)
-                            .border(Color.gray.opacity(0.3))
-                    }
-                    
-                    HStack {
-                        Button("Save") {
-                            saveScript()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(scriptName.isEmpty || scriptCommand.isEmpty)
-                        
-                        if selectedScript != nil {
-                            Button("Run") {
-                                runScript()
-                            }
-                            .buttonStyle(.bordered)
-                            
-                            Button("Delete") {
-                                deleteScript()
-                            }
-                            .buttonStyle(.bordered)
-                            .foregroundColor(.red)
-                        }
-                        
-                        Spacer()
-                    }
-                    
-                    Spacer()
-                }
-                .padding()
-            }
-            .onAppear {
-                loadScripts()
-            }
-            .onChange(of: selectedScript) { _, newValue in
-                if let script = newValue {
-                    loadScript(script)
-                }
-            }
+            ScriptsPanel(onScriptsChanged: {
+                NotificationCenter.default.post(name: .reloadApps, object: nil)
+            })
             .tabItem {
                 Label("Scripts", systemImage: "terminal")
             }
             .tag(2)
         }
-        .onAppear {
-            checkLoginStatus()
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button(action: {
+                    NSApplication.shared.terminate(nil)
+                }) {
+                    Image(systemName: "power")
+                }
+                .help("Quit Dux Launcher")
+            }
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: selectedTab) { _, newTab in
             if newTab == 0 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    isFocused = true
+                    NotificationCenter.default.post(name: .focusSearchField, object: nil)
                 }
             }
         }
         .onKeyPress(.downArrow) {
-            if selectedTab == 0 && selectedIndex < displayApps.count - 1 {
-                selectedIndex += 1
+            if selectedTab == 0 {
+                NotificationCenter.default.post(name: .searchNavigateDown, object: nil)
             }
             return .handled
         }
         .onKeyPress(.upArrow) {
-            if selectedTab == 0 && selectedIndex > 0 {
-                selectedIndex -= 1
+            if selectedTab == 0 {
+                NotificationCenter.default.post(name: .searchNavigateUp, object: nil)
             }
             return .handled
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { _ in
+            selectedTab = (selectedTab + 1) % 3
         }
         .onKeyPress(.return) {
-            if selectedTab == 0 && selectedIndex < displayApps.count {
-                launchApp(displayApps[selectedIndex])
+            if selectedTab == 0 {
+                NotificationCenter.default.post(name: .searchLaunchSelected, object: nil)
             }
             return .handled
         }
-        .onKeyPress(.escape) {
-            NSApplication.shared.windows.first?.orderOut(nil)
-            return .handled
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .focusSearchField)) { _ in
-            isFocused = true
-        }
-    }
-    
-    func checkLoginStatus() {
-        if #available(macOS 13.0, *) {
-            launchAtLogin = SMAppService.mainApp.status == .enabled
-        }
-    }
-    
-    func toggleLaunchAtLogin(_ enabled: Bool) {
-        if #available(macOS 13.0, *) {
-            do {
-                if enabled {
-                    try SMAppService.mainApp.register()
-                } else {
-                    try SMAppService.mainApp.unregister()
-                }
-            } catch {
-                print("Failed to \(enabled ? "enable" : "disable") launch at login: \(error)")
-                launchAtLogin = !enabled
-            }
-        }
-    }
-    
-    func createMainFolder() {
-        if !fileManager.fileExists(atPath: DuxAppLauncher.MAIN_FOLDER) {
-            try? fileManager.createDirectory(atPath: DuxAppLauncher.MAIN_FOLDER, withIntermediateDirectories: true)
-        }
-    }
-    
-    func loadOptions() -> Bool {
-        guard fileManager.fileExists(atPath: DuxAppLauncher.OPTIONS_FILE),
-              let data = fileManager.contents(atPath: DuxAppLauncher.OPTIONS_FILE),
-              let content = String(data: data, encoding: .utf8) else {
-            return false
-        }
-        
-        var result = false
-        for line in content.components(separatedBy: "\n") {
-            let parts = line.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
-            if parts.count == 2 {
-                if parts[0] == "include_system_preferences" {
-                    result = parts[1] == "true"
-                    includeSystemPreferences = result
-                }
-            }
-        }
-        return result
-    }
-    
-    func saveOptions() {
-        let content = "include_system_preferences: \(includeSystemPreferences)"
-        try? content.write(toFile: DuxAppLauncher.OPTIONS_FILE, atomically: true, encoding: .utf8)
-    }
-    
-    func loadApps(_ includePrefs: Bool? = nil) {
-        var allApps: [AppInfo] = []
-        var appCountTemp = 0
-        var scriptCountTemp = 0
-        
-        let shouldIncludePrefs = includePrefs ?? includeSystemPreferences
-        
-        let appPaths = [
-            "/Applications",
-            "/System/Applications",
-            (NSHomeDirectory() as NSString).appendingPathComponent("Applications")
-        ]
-        
-        for appPath in appPaths {
-            if let contents = try? fileManager.contentsOfDirectory(atPath: appPath) {
-                let folderApps = contents.compactMap { fileName -> AppInfo? in
-                    if fileName.hasSuffix(".app") {
-                        appCountTemp += 1
-                        let fullPath = "\(appPath)/\(fileName)"
-                        if let appName = fileName.dropLast(4).description as String? {
-                            let icon = getAppIcon(for: fullPath)
-                            return AppInfo(name: appName, path: fullPath, icon: icon)
-                        }
-                    }
-                    return nil
-                }
-                allApps.append(contentsOf: folderApps)
-            }
-        }
-        
-        if let contents = try? fileManager.contentsOfDirectory(atPath: DuxAppLauncher.MAIN_FOLDER) {
-            let shellApps = contents.compactMap { fileName -> AppInfo? in
-                if fileName.hasSuffix(".sh") {
-                    scriptCountTemp += 1
-                    let fullPath = "\(DuxAppLauncher.MAIN_FOLDER)/\(fileName)"
-                    let appName = fileName.replacingOccurrences(of: ".sh", with: "")
-                    return AppInfo(name: appName, path: fullPath, icon: nil)
-                }
-                return nil
-            }
-            allApps.append(contentsOf: shellApps)
-        }
-        
-        // Add System Preferences panes if enabled
-        if shouldIncludePrefs {
-            let prefPanesPath = "/System/Library/PreferencePanes"
-            if let contents = try? fileManager.contentsOfDirectory(atPath: prefPanesPath) {
-                let prefPanes = contents.compactMap { fileName -> AppInfo? in
-                    if fileName.hasSuffix(".prefPane") {
-                        appCountTemp += 1
-                        let fullPath = "\(prefPanesPath)/\(fileName)"
-                        let appName = fileName.replacingOccurrences(of: ".prefPane", with: "")
-                        let icon = getAppIcon(for: fullPath)
-                        return AppInfo(name: appName, path: fullPath, icon: icon)
-                    }
-                    return nil
-                }
-                allApps.append(contentsOf: prefPanes)
-            }
-        }
-        
-        apps = allApps.sorted { $0.name < $1.name }
-        appCount = appCountTemp
-        scriptCount = scriptCountTemp
-    }
-    
-    func loadHistory() {
-        guard fileManager.fileExists(atPath: DuxAppLauncher.HISTORY_FILE),
-              let data = fileManager.contents(atPath: DuxAppLauncher.HISTORY_FILE),
-              let historyPaths = String(data: data, encoding: .utf8)?.components(separatedBy: "\n").filter({ !$0.isEmpty }) else {
-            return
-        }
-        
-        history = historyPaths.compactMap { path in
-            let name = (path as NSString).lastPathComponent.replacingOccurrences(of: ".app", with: "")
-            let icon = getAppIcon(for: path)
-            return AppInfo(name: name, path: path, icon: icon)
-        }
-    }
-    
-    func saveHistory(_ app: AppInfo) {
-        var currentHistory = history.map { $0.path }.filter { $0 != app.path }
-        currentHistory.insert(app.path, at: 0)
-        currentHistory = Array(currentHistory.prefix(4))
-        
-        let historyString = currentHistory.joined(separator: "\n")
-        try? historyString.write(toFile: DuxAppLauncher.HISTORY_FILE, atomically: true, encoding: .utf8)
-    }
-    
-    func getAppIcon(for path: String) -> NSImage? {
-        return NSWorkspace.shared.icon(forFile: path)
-    }
-    
-    func getAppModifiedTime() -> String {
-        let appPath = Bundle.main.bundlePath
-        guard let attrs = try? fileManager.attributesOfItem(atPath: appPath),
-              let modDate = attrs[.modificationDate] as? Date else {
-            return "Unknown"
-        }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: modDate)
-    }
-    
-    func launchApp(_ app: AppInfo) {
-        saveHistory(app)
-        
-        if app.path.hasSuffix(".sh") {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = [app.path]
-            try? process.run()
-        } else if app.path.hasSuffix(".prefPane") {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            process.arguments = ["-b", "com.apple.systempreferences", app.path]
-            try? process.run()
-        } else {
-            NSWorkspace.shared.open(URL(fileURLWithPath: app.path))
-        }
-        
-        NSApplication.shared.windows.first?.orderOut(nil)
-        searchText = ""
-    }
-    
-    func loadScripts() {
-        scripts = []
-        if let contents = try? fileManager.contentsOfDirectory(atPath: DuxAppLauncher.MAIN_FOLDER) {
-            scripts = contents.filter { $0.hasSuffix(".sh") }
-                .map { $0.replacingOccurrences(of: ".sh", with: "") }
-                .sorted()
-        }
-    }
-    
-    func loadScript(_ name: String) {
-        let path = "\(DuxAppLauncher.MAIN_FOLDER)/\(name).sh"
-        if let content = try? String(contentsOfFile: path, encoding: .utf8) {
-            scriptName = name
-            scriptCommand = content
-        }
-    }
-    
-    func saveScript() {
-        let path = "\(DuxAppLauncher.MAIN_FOLDER)/\(scriptName).sh"
-        try? scriptCommand.write(toFile: path, atomically: true, encoding: .utf8)
-        try? fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
-        loadScripts()
-        loadApps()
-        selectedScript = scriptName
-    }
-    
-    func deleteScript() {
-        guard let script = selectedScript else { return }
-        let path = "\(DuxAppLauncher.MAIN_FOLDER)/\(script).sh"
-        try? fileManager.removeItem(atPath: path)
-        scriptName = ""
-        scriptCommand = ""
-        selectedScript = nil
-        loadScripts()
-        loadApps()
-    }
-    
-    func runScript() {
-        guard let script = selectedScript else { return }
-        let path = "\(DuxAppLauncher.MAIN_FOLDER)/\(script).sh"
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = [path]
-        try? process.run()
     }
 }

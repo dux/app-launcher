@@ -13,7 +13,7 @@ default: install-local
 # Build the app (dev mode - to bin/)
 build:
 	@echo "Building $(APP_NAME)..."
-	@swiftc -parse-as-library app/DuxAppLauncher.swift -o "bin/$(APP_NAME)"
+	@swiftc -parse-as-library app/DuxAppLauncher.swift app/Shared.swift app/panel/SearchPanel.swift app/panel/SettingsPanel.swift app/panel/ScriptsPanel.swift -o "bin/$(APP_NAME)"
 	@echo "✓ Build complete"
 
 # Install to ~/Applications and run
