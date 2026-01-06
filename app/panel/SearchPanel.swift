@@ -65,49 +65,28 @@ struct SearchPanel: View {
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(0..<displayApps.count, id: \.self) { index in
-                    HStack {
-                        if let icon = displayApps[index].icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .frame(width: 48, height: 48)
-                        } else {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 48, height: 48)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(displayApps[index].name)
-                                .font(.system(size: 13))
-                            Text(displayApps[index].path.hasPrefix(NSHomeDirectory()) ? displayApps[index].path.replacingOccurrences(of: NSHomeDirectory(), with: "~") : displayApps[index].path)
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 2)
-                    .padding(.leading, 3)
-                    .listRowSeparator(.hidden)
-                    .background(
-                        Group {
-                            if index == selectedIndex {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.accentColor.opacity(0.2))
+                ScrollViewReader { proxy in
+                    List(0..<displayApps.count, id: \.self) { index in
+                        AppItemRow(app: displayApps[index], isSelected: index == selectedIndex)
+                            .listRowSeparator(.hidden)
+                            .id(index)
+                            .onTapGesture {
+                                selectedIndex = index
+                                launchSelectedApp()
                             }
-                        }
-                    )
-                    .onTapGesture {
-                        selectedIndex = index
-                        launchSelectedApp()
+                            .onAppear {
+                                if index == 0 {
+                                    selectedIndex = 0
+                                }
+                            }
                     }
-                    .onAppear {
-                        if index == 0 {
-                            selectedIndex = 0
+                    .listStyle(.plain)
+                    .onChange(of: selectedIndex) { _, newIndex in
+                        withAnimation {
+                            proxy.scrollTo(newIndex, anchor: .center)
                         }
                     }
                 }
-                .listStyle(.plain)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusSearchField)) { _ in

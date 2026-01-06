@@ -5,7 +5,8 @@ import SwiftUI
 extension Notification.Name {
     static let focusSearchField = Notification.Name("focusSearchField")
     static let reloadApps = Notification.Name("reloadApps")
-    static let switchTab = Notification.Name("switchTab")
+    static let switchTabLeft = Notification.Name("switchTabLeft")
+    static let switchTabRight = Notification.Name("switchTabRight")
     static let toggleMenuBarIcon = Notification.Name("toggleMenuBarIcon")
 }
 
@@ -21,6 +22,57 @@ struct AppInfo {
     let name: String
     let path: String
     let icon: NSImage?
+}
+
+// MARK: - Shared Views
+struct AppItemRow: View {
+    let app: AppInfo
+    let isSelected: Bool
+    
+    var body: some View {
+        HStack {
+            if let icon = app.icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 56, height: 56)
+            } else {
+                Image(systemName: "terminal")
+                    .font(.system(size: 28))
+                    .frame(width: 56, height: 56)
+                    .foregroundColor(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(app.name)
+                    .font(.system(size: 18))
+                Text(app.path.hasPrefix(NSHomeDirectory()) ? app.path.replacingOccurrences(of: NSHomeDirectory(), with: "~") : app.path)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 2)
+        .padding(.leading, 3)
+        .background(
+            Group {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.accentColor.opacity(0.2))
+                }
+            }
+        )
+        .contextMenu {
+            Button("Copy Path") {
+                AppUtils.copyToClipboard(app.path)
+            }
+            Button("Open") {
+                AppUtils.openInFinder(app.path)
+            }
+            Button(app.path.hasSuffix(".app") ? "Open app package" : "Open Folder") {
+                AppUtils.openFolder(app.path)
+            }
+        }
+    }
 }
 
 // MARK: - Shared Utilities
@@ -193,8 +245,20 @@ struct AppUtils {
         }
         
         return historyPaths.compactMap { path in
-            let name = (path as NSString).lastPathComponent.replacingOccurrences(of: ".app", with: "")
-            let icon = getAppIcon(for: path)
+            var name = (path as NSString).lastPathComponent
+            let icon: NSImage?
+            
+            if path.hasSuffix(".prefPane") {
+                name = name.replacingOccurrences(of: ".prefPane", with: "")
+                icon = getPrefPaneIcon(for: name)
+            } else if path.hasSuffix(".sh") {
+                name = name.replacingOccurrences(of: ".sh", with: "")
+                icon = nil
+            } else {
+                name = name.replacingOccurrences(of: ".app", with: "")
+                icon = getAppIcon(for: path)
+            }
+            
             return AppInfo(name: name, path: path, icon: icon)
         }
     }
@@ -227,5 +291,38 @@ struct AppUtils {
         
         NSApplication.shared.windows.first?.orderOut(nil)
         onComplete()
+    }
+    
+    static func copyToClipboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+    
+    static func openInFinder(_ path: String) {
+        let url = URL(fileURLWithPath: path)
+        
+        if path.hasSuffix(".app") {
+            NSWorkspace.shared.open(url)
+        } else {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        }
+    }
+    
+    static func openFolder(_ path: String) {
+        let url = URL(fileURLWithPath: path)
+        
+        if path.hasSuffix(".app") {
+            let contentsPath = "\(path)/Contents"
+            let script = """
+            tell application "Finder"
+                open folder POSIX file "\(contentsPath)"
+            end tell
+            """
+            var error: NSDictionary?
+            NSAppleScript(source: script)?.executeAndReturnError(&error)
+        } else {
+            let folderUrl = url.deletingLastPathComponent()
+            NSWorkspace.shared.open(folderUrl)
+        }
     }
 }

@@ -5,13 +5,13 @@ import Carbon.HIToolbox
 @main
 struct DuxAppLauncher: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
+
     var body: some Scene {
         WindowGroup("Dux Launcher", id: "main") {
             ContentView()
+                .frame(minWidth: 840, minHeight: 480)
         }
-        .windowResizability(.contentSize)
-        .defaultSize(width: 500, height: 400)
+        .defaultSize(width: 840, height: 480)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About Dux Launcher") {
@@ -20,27 +20,27 @@ struct DuxAppLauncher: App {
             }
         }
     }
-    
+
     func showAbout() {
         let alert = NSAlert()
         alert.messageText = "DuxAppLauncher"
         alert.informativeText = """
         Made by Dino Reic
         https://github.com/dux/dux-app-launcher
-        
+
         Usage:
         • Cmd+Space: Toggle launcher
         • Type: Search apps/scripts
         • ↑/↓: Navigate
         • Enter: Launch
         • Esc: Hide window
-        
+
         Sources:
         • /Applications
         • /System/Applications
         • ~/Applications
         • ~/.dux-launcher/*.sh
-        
+
         Requires Accessibility permission for Cmd+Space shortcut.
         """
         alert.alertStyle = .informational
@@ -68,13 +68,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
-        
+
         // Setup menu bar icon based on saved preference
         let options = AppUtils.loadOptions()
         if options.showMenuBarIcon {
             setupStatusItem()
         }
-        
+
         // Listen for menu bar icon toggle
         NotificationCenter.default.addObserver(forName: .toggleMenuBarIcon, object: nil, queue: .main) { [weak self] notification in
             if let show = notification.object as? Bool {
@@ -85,15 +85,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
-        
+
         // Register global hotkey: Cmd+Space
         registerHotKey()
 
-        // Add local event monitor for Tab and Escape keys
+        // Add local event monitor for arrow keys and Escape
         tabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // Tab key = keyCode 48
-            if event.keyCode == 48 {
-                NotificationCenter.default.post(name: .switchTab, object: nil)
+            // Left arrow = keyCode 123
+            if event.keyCode == 123 {
+                NotificationCenter.default.post(name: .switchTabLeft, object: nil)
+                return nil // Consume the event
+            }
+            // Right arrow = keyCode 124
+            if event.keyCode == 124 {
+                NotificationCenter.default.post(name: .switchTabRight, object: nil)
                 return nil // Consume the event
             }
             // Escape key = keyCode 53
@@ -103,10 +108,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return event
         }
-        
+
         DispatchQueue.main.async {
             if let win = NSApplication.shared.windows.first {
                 self.window = win
+
+                // Hide traffic light buttons (close, minimize, zoom)
+                // win.standardWindowButton(.closeButton)?.isHidden = true
+                win.standardWindowButton(.miniaturizeButton)?.isHidden = true
+                win.standardWindowButton(.zoomButton)?.isHidden = true
+
                 win.center()
                 win.orderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
@@ -116,25 +127,67 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
-    
+
     func setupStatusItem() {
         if statusItem != nil { return } // Already set up
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        
+
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Dux Launcher")
+            button.image = createMenuBarIcon()
             button.action = #selector(statusItemClicked)
             button.target = self
         }
     }
-    
+
+    func createMenuBarIcon() -> NSImage {
+        let size: CGFloat = 18
+        let image = NSImage(size: NSSize(width: size, height: size))
+
+        image.lockFocus()
+
+        let font = NSFont.systemFont(ofSize: 6.5, weight: .bold)
+        let color = NSColor.labelColor
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: color,
+            .paragraphStyle: paragraphStyle
+        ]
+
+        // Draw 3x3 matrix: DUX / APP / LNC (uppercase, tight)
+        let letters = [
+            ["D", "U", "X"],
+            ["A", "P", "P"],
+            ["L", "N", "C"]
+        ]
+
+        let cellSize = size / 3
+        for (row, rowLetters) in letters.enumerated() {
+            for (col, letter) in rowLetters.enumerated() {
+                let rect = NSRect(
+                    x: CGFloat(col) * cellSize - 0.5,
+                    y: size - CGFloat(row + 1) * cellSize,
+                    width: cellSize,
+                    height: cellSize
+                )
+                letter.draw(in: rect, withAttributes: attrs)
+            }
+        }
+
+        image.unlockFocus()
+        image.isTemplate = true
+        return image
+    }
+
     func removeStatusItem() {
         if let item = statusItem {
             NSStatusBar.system.removeStatusItem(item)
             statusItem = nil
         }
     }
-    
+
     @objc func statusItemClicked() {
         AppDelegate.showWindow()
     }
@@ -153,17 +206,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         return true
     }
-    
+
     func registerHotKey() {
         // Use Carbon API for reliable global hotkey (no Accessibility permission needed)
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        
+
         // Install handler (shared for both hotkeys)
         InstallEventHandler(GetApplicationEventTarget(), { (_, event, _) -> OSStatus in
             AppDelegate.showWindow()
             return noErr
         }, 1, &eventType, nil, nil)
-        
+
         // Register Cmd+Space
         let hotKeyID1 = EventHotKeyID(signature: OSType(0x444C4348), id: 1) // "DLCH"
         RegisterEventHotKey(
@@ -174,7 +227,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             0,
             &hotKeyRef
         )
-        
+
         // Register Shift+Cmd+Space (fallback if Spotlight uses Cmd+Space)
         let hotKeyID2 = EventHotKeyID(signature: OSType(0x444C4348), id: 2)
         RegisterEventHotKey(
@@ -186,7 +239,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             &hotKeyRef2
         )
     }
-    
+
     @discardableResult
     func handleHotKey(_ event: NSEvent) -> Bool {
         // Check for Cmd+Space (keyCode 49 = Space)
@@ -197,7 +250,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         return false
     }
-    
+
     static func showWindow() {
         guard let window = NSApplication.shared.windows.first else { return }
         window.center()
@@ -207,7 +260,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.post(name: .focusSearchField, object: nil)
         }
     }
-    
+
     static func hideWindow() {
         NSApplication.shared.windows.first?.orderOut(nil)
         NSApp.hide(nil)
@@ -219,7 +272,7 @@ struct ContentView: View {
     @State private var launchAtLogin = false
     @State private var includeSystemPreferences = false
     @State private var showMenuBarIcon = true
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             SearchPanel(
@@ -232,7 +285,7 @@ struct ContentView: View {
                 Label("Search", systemImage: "magnifyingglass")
             }
             .tag(0)
-            
+
             SettingsPanel(
                 launchAtLogin: $launchAtLogin,
                 includeSystemPreferences: $includeSystemPreferences,
@@ -245,7 +298,7 @@ struct ContentView: View {
                 Label("Settings", systemImage: "gearshape")
             }
             .tag(1)
-            
+
             ScriptsPanel(onScriptsChanged: {
                 NotificationCenter.default.post(name: .reloadApps, object: nil)
             })
@@ -284,7 +337,10 @@ struct ContentView: View {
             }
             return .handled
         }
-        .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .switchTabLeft)) { _ in
+            selectedTab = selectedTab > 0 ? selectedTab - 1 : 2
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .switchTabRight)) { _ in
             selectedTab = (selectedTab + 1) % 3
         }
         .onKeyPress(.return) {
