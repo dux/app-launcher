@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dux App Launcher</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+            },
+            colors: {
+              mist: '#CDD6F6',
+              lilac: '#B695FF',
+              dusk: '#0F172A',
+              twilight: '#1E1B3A',
+              ocean: '#233C7E',
+              cyber: '#71F4C8',
+            },
+            boxShadow: {
+              glass: '0 20px 60px rgba(5, 10, 30, 0.6)',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Space Grotesk", system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-dusk text-mist">
+    <div class="relative min-h-screen overflow-hidden">
+      <div class="pointer-events-none absolute inset-0 opacity-70">
+        <div class="absolute -right-48 top-0 h-72 w-72 rounded-full bg-lilac blur-3xl"></div>
+        <div class="absolute left-10 top-40 h-80 w-80 rounded-full bg-cyber blur-3xl"></div>
+        <div class="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-dusk via-transparent"></div>
+      </div>
+
+      <header class="relative z-10 px-6 py-10 sm:px-12">
+        <div class="mx-auto flex flex-col items-center justify-between gap-6 rounded-3xl border border-white/10 bg-twilight/60 px-6 py-8 shadow-glass backdrop-blur-xl lg:max-w-6xl lg:flex-row lg:px-14">
+          <div>
+            <p class="text-xs uppercase tracking-[0.5em] text-cyber">dux launcher</p>
+            <h1 class="mt-3 text-4xl font-semibold text-white sm:text-5xl">
+              A modern macOS launcher that feels instant.
+            </h1>
+            <p class="mt-4 max-w-xl text-base text-mist/90">
+              Dux is a Spotlight-like launcher for builders who want total control over search, system integrations, and custom scripts—without leaving the keyboard.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3 text-sm font-medium">
+              <a
+                href="https://github.com/dux/app-launcher"
+                class="rounded-full bg-cyber px-5 py-2 text-dusk transition hover:bg-white"
+              >
+                View on GitHub
+              </a>
+              <a
+                href="https://github.com/dux/app-launcher/releases"
+                class="rounded-full border border-white/20 px-5 py-2 text-white transition hover:border-white/40"
+              >
+                Install Binary
+              </a>
+            </div>
+          </div>
+          <div class="relative w-full max-w-md">
+            <div class="absolute -left-4 -top-4 flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs text-mist/80">
+              <span class="h-2 w-2 animate-pulse rounded-full bg-cyber"></span>
+              Live search preview
+            </div>
+            <div class="rounded-3xl border border-white/10 bg-gradient-to-br from-twilight/70 to-dusk/80 p-4 shadow-glass backdrop-blur-xl">
+              <img src="assets/search.png" alt="Dux search screenshot" class="w-full rounded-2xl border border-white/5" />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="relative z-10 space-y-24 pb-20">
+        <section class="px-6 sm:px-12">
+          <div class="mx-auto max-w-5xl text-center">
+            <p class="text-sm uppercase tracking-[0.4em] text-cyber">Workflows</p>
+            <h2 class="mt-4 text-3xl font-semibold text-white">All the essentials tuned for flow</h2>
+            <p class="mt-3 text-lg text-mist/80">
+              Search faster, toggle system behaviors, manage scripts, and keep everything in sync—with a UI that feels like a native tool.
+            </p>
+          </div>
+          <div class="mx-auto mt-10 grid max-w-4xl gap-6 text-left sm:grid-cols-2">
+            <article class="rounded-3xl border border-white/10 bg-twilight/60 p-6 shadow-glass backdrop-blur-xl">
+              <h3 class="text-xl font-semibold text-white">Search & Ranking</h3>
+              <ul class="mt-4 space-y-2 text-sm text-mist/80">
+                <li>Instant search across macOS apps & scripts</li>
+                <li>Smart ranking that prioritizes prefix matches</li>
+                <li>Launch history boosts frequency & recency</li>
+                <li>Empty queries resurface recent launches</li>
+              </ul>
+            </article>
+            <article class="rounded-3xl border border-white/10 bg-twilight/60 p-6 shadow-glass backdrop-blur-xl">
+              <h3 class="text-xl font-semibold text-white">Keyboard & Windowing</h3>
+              <ul class="mt-4 space-y-2 text-sm text-mist/80">
+                <li>Cmd+Space global toggle + Arrow navigation</li>
+                <li>Tabbed interface for Search / Settings / Scripts</li>
+                <li>Automatic search focus & minimalist glass UI</li>
+                <li>Menu bar icon for quick access</li>
+              </ul>
+            </article>
+            <article class="rounded-3xl border border-white/10 bg-twilight/60 p-6 shadow-glass backdrop-blur-xl">
+              <h3 class="text-xl font-semibold text-white">System Integration</h3>
+              <ul class="mt-4 space-y-2 text-sm text-mist/80">
+                <li>Toggle macOS System Settings panes</li>
+                <li>Surface curated commands (Sleep, Lock, etc.)</li>
+                <li>Quick switches for menu bar icon & login launch</li>
+                <li>Context menus to reveal and copy paths</li>
+              </ul>
+            </article>
+            <article class="rounded-3xl border border-white/10 bg-twilight/60 p-6 shadow-glass backdrop-blur-xl">
+              <h3 class="text-xl font-semibold text-white">Settings Panel</h3>
+              <ul class="mt-4 space-y-2 text-sm text-mist/80">
+                <li>Launch at login powered by SMAppService</li>
+                <li>System panes & command toggles with reloads</li>
+                <li>Shortcut cheatsheet and disable Spotlight link</li>
+                <li>Open app folder shortcut to Finder</li>
+              </ul>
+            </article>
+            <article class="rounded-3xl border border-white/10 bg-twilight/60 p-6 shadow-glass backdrop-blur-xl">
+              <h3 class="text-xl font-semibold text-white">Custom Scripts</h3>
+              <ul class="mt-4 space-y-2 text-sm text-mist/80">
+                <li>Built-in editor with run/save/delete actions</li>
+                <li>Scripts live in ~/.dux-app-launcher/*.sh</li>
+                <li>Executable permissions handled automatically</li>
+                <li>Programmatic refresh keeps search in sync</li>
+              </ul>
+            </article>
+            <article class="rounded-3xl border border-white/10 bg-twilight/60 p-6 shadow-glass backdrop-blur-xl">
+              <h3 class="text-xl font-semibold text-white">Configuration & Persistence</h3>
+              <ul class="mt-4 space-y-2 text-sm text-mist/80">
+                <li>Preferences in ~/.dux-app-launcher/options.yaml</li>
+                <li>Launch history stored in history.txt</li>
+                <li>Instant refresh after every launch</li>
+                <li>Settings surface the entire state at a glance</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="px-4 sm:px-8">
+          <div class="mx-auto max-w-6xl space-y-12 text-center">
+            <div class="rounded-3xl border border-white/10 bg-twilight/70 p-6 shadow-glass backdrop-blur-xl">
+              <p class="text-sm uppercase tracking-[0.4em] text-cyber">Search</p>
+              <h2 class="mt-3 text-3xl font-semibold text-white">Instant results with ranking context</h2>
+              <p class="mt-4 text-base text-mist/80">
+                The search surface combines apps, scripts, and system commands with live ranking feedback. Empty queries show your last launches for fast recall.
+              </p>
+            </div>
+            <div class="mx-auto max-w-5xl rounded-[32px] border border-white/10 bg-black/40 p-3 shadow-glass">
+              <img src="assets/search.png" alt="Dux search screenshot" class="mx-auto block w-full max-w-full rounded-[24px]" />
+            </div>
+          </div>
+        </section>
+
+        <section class="px-4 sm:px-8">
+          <div class="mx-auto max-w-6xl space-y-12 text-center">
+            <div class="rounded-3xl border border-white/10 bg-twilight/70 p-6 shadow-glass backdrop-blur-xl">
+              <p class="text-sm uppercase tracking-[0.4em] text-cyber">Settings</p>
+              <h2 class="mt-3 text-3xl font-semibold text-white">One panel for all system knobs</h2>
+              <p class="mt-4 text-base text-mist/80">
+                Toggle launch-at-login, menu bar icons, curated system commands, and macOS panes—without digging into System Settings.
+              </p>
+            </div>
+            <div class="mx-auto max-w-5xl rounded-[32px] border border-white/10 bg-black/40 p-3 shadow-glass">
+              <img src="assets/settings.png" alt="Settings screenshot" class="mx-auto block w-full max-w-full rounded-[24px]" />
+            </div>
+          </div>
+        </section>
+
+        <section class="px-4 sm:px-8">
+          <div class="mx-auto max-w-6xl space-y-12 text-center">
+            <div class="rounded-3xl border border-white/10 bg-twilight/70 p-6 shadow-glass backdrop-blur-xl">
+              <p class="text-sm uppercase tracking-[0.4em] text-cyber">Scripts</p>
+              <h2 class="mt-3 text-3xl font-semibold text-white">Built-in editor for custom workflows</h2>
+              <p class="mt-4 text-base text-mist/80">
+                Create, run, save, and delete scripts directly inside Dux. Everything syncs to `~/.dux-app-launcher/*.sh` with automatic executable permissions.
+              </p>
+            </div>
+            <div class="mx-auto max-w-5xl rounded-[32px] border border-white/10 bg-black/40 p-3 shadow-glass">
+              <img src="assets/scripts.png" alt="Scripts screenshot" class="mx-auto block w-full max-w-full rounded-[24px]" />
+            </div>
+          </div>
+        </section>
+
+        <section class="px-6 sm:px-12">
+          <div class="mx-auto max-w-5xl text-center">
+            <p class="text-sm uppercase tracking-[0.4em] text-cyber">Setup</p>
+            <h2 class="mt-3 text-3xl font-semibold text-white">Install & configure instantly</h2>
+            <p class="mt-4 text-base text-mist/80">
+              Build from source with a single `make`, or grab the latest binary release. Configuration lives in a simple YAML file you can version or sync.
+            </p>
+          </div>
+          <div class="mx-auto mt-10 grid max-w-4xl gap-6 text-left sm:grid-cols-2">
+            <article class="rounded-3xl border border-white/10 bg-dusk/60 p-6 shadow-glass backdrop-blur-xl">
+              <h3 class="text-lg font-semibold text-white">Install</h3>
+              <p class="mt-2 text-sm text-mist/70">
+                Run `make`, `make build`, `make clean`, or `make install` depending on your workflow.
+              </p>
+            </article>
+            <article class="rounded-3xl border border-white/10 bg-dusk/60 p-6 shadow-glass backdrop-blur-xl">
+              <h3 class="text-lg font-semibold text-white">Config</h3>
+              <p class="mt-2 text-sm text-mist/70">
+                Preferences live in `~/.dux-app-launcher/options.yaml`. Launch history is stored in `history.txt` and updates after each launch.
+              </p>
+            </article>
+            <article class="rounded-3xl border border-white/10 bg-dusk/60 p-6 shadow-glass backdrop-blur-xl sm:col-span-2">
+              <h3 class="text-lg font-semibold text-white">Scripts</h3>
+              <p class="mt-2 text-sm text-mist/70">
+                Drop scripts into `~/.dux-app-launcher/*.sh` or use the built-in editor in the Scripts tab.
+              </p>
+            </article>
+          </div>
+          <div class="mx-auto mt-10 max-w-4xl rounded-3xl border border-white/10 bg-gradient-to-br from-dusk/80 to-ocean/70 p-8 text-center shadow-glass">
+            <p class="text-sm uppercase tracking-[0.3em] text-mist/70">Usage Cheatsheet</p>
+            <ul class="mt-6 space-y-5 text-sm text-mist/90">
+              <li class="flex flex-wrap items-center justify-between border-b border-white/10 pb-4">
+                <span class="text-mist">Cmd+Space / Shift+Cmd+Space</span>
+                <span class="text-cyber">Toggle launcher</span>
+              </li>
+              <li class="flex flex-wrap items-center justify-between border-b border-white/10 pb-4">
+                <span class="text-mist">Arrow Keys</span>
+                <span class="text-cyber">Navigate & switch tabs</span>
+              </li>
+              <li class="flex flex-wrap items-center justify-between border-b border-white/10 pb-4">
+                <span class="text-mist">Enter</span>
+                <span class="text-cyber">Launch selected</span>
+              </li>
+              <li class="flex flex-wrap items-center justify-between">
+                <span class="text-mist">Esc</span>
+                <span class="text-cyber">Hide window</span>
+              </li>
+            </ul>
+            <div class="mt-8 rounded-2xl border border-cyber/30 bg-white/5 px-5 py-4 text-sm text-mist/80">
+              <p>Need more context? Explore code, issues, and roadmap on the main repo.</p>
+              <a href="https://github.com/dux/app-launcher" class="mt-3 inline-flex items-center gap-2 text-cyber">
+                github.com/dux/app-launcher
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 17 17 7m0 0h-6m6 0v6" />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section class="px-6 sm:px-12">
+          <div class="mx-auto max-w-5xl text-center">
+            <p class="text-sm uppercase tracking-[0.4em] text-cyber">Why Dux</p>
+            <h2 class="mt-3 text-3xl font-semibold text-white">Feel like you built your launcher</h2>
+            <p class="mt-4 text-base text-mist/80">
+              Dux is open source. Clone it, tweak it, and push the workflow you want. The GitHub repo is the single source of truth for releases, issues, and roadmap.
+            </p>
+            <div class="mt-8 flex flex-wrap items-center justify-center gap-4 text-sm">
+              <a href="https://github.com/dux/app-launcher" class="rounded-full border border-white/30 px-6 py-3 text-white transition hover:bg-white/10">Explore the Repo</a>
+              <a href="https://github.com/dux/app-launcher/releases" class="rounded-full border border-cyber/40 bg-cyber/10 px-6 py-3 text-cyber transition hover:bg-cyber/20">Grab Latest Release</a>
+              <span class="rounded-full border border-white/10 px-6 py-3 text-mist/70">MIT Licensed · macOS Native</span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="relative z-10 border-t border-white/10 bg-gradient-to-t from-black/40 via-transparent px-6 py-10 text-center text-sm text-mist/60 sm:px-12">
+        <p>© Dux App Launcher · Built by the community · <a class="text-cyber" href="https://github.com/dux/app-launcher">github.com/dux/app-launcher</a></p>
+      </footer>
+    </div>
+  </body>
+</html>

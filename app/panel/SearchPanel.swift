@@ -5,6 +5,8 @@ struct SearchPanel: View {
     @State private var searchText = ""
     @State private var apps: [AppInfo] = []
     @State private var history: [AppInfo] = []
+    @State private var historyOrder: [String: Int] = [:]
+    @State private var historyFrequencies: [String: Int] = [:]
     @State private var selectedIndex = 0
     @State private var appCount = 0
     @State private var scriptCount = 0
@@ -15,15 +17,16 @@ struct SearchPanel: View {
     var onSettingsLoaded: ((Bool) -> Void)?
 
     var displayApps: [AppInfo] {
-        if searchText.isEmpty && !history.isEmpty {
-            return Array(history.prefix(5))
-        }
         if searchText.isEmpty {
+            if !history.isEmpty {
+                return Array(history.prefix(5))
+            }
             return Array(apps.prefix(200))
         }
-        return apps.filter { app in
+        let filtered = apps.filter { app in
             app.name.localizedCaseInsensitiveContains(searchText)
-        }.prefix(200).map { $0 }
+        }
+        return Array(sortApps(filtered, query: searchText).prefix(200))
     }
 
     var body: some View {
@@ -41,7 +44,7 @@ struct SearchPanel: View {
                     includeSystemCommands = opts.includeSystemCommands
                     onSettingsLoaded?(opts.includeSystemPreferences)
                     reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
-                    history = AppUtils.loadHistory()
+                    refreshHistory()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isFocused = true
                     }
@@ -49,7 +52,7 @@ struct SearchPanel: View {
                 .onChange(of: searchText) { _, newValue in
                     selectedIndex = 0
                     if newValue.isEmpty {
-                        history = AppUtils.loadHistory()
+                        refreshHistory()
                     }
                 }
 
@@ -120,8 +123,38 @@ struct SearchPanel: View {
     func launchSelectedApp() {
         guard selectedIndex < displayApps.count else { return }
         let app = displayApps[selectedIndex]
-        AppUtils.launchApp(app, history: history) {
+        AppUtils.launchApp(app) {
             searchText = ""
+            refreshHistory()
+        }
+    }
+    
+    private func refreshHistory() {
+        history = AppUtils.loadHistory()
+        let metadata = AppUtils.loadHistoryMetadata()
+        historyOrder = metadata.order
+        historyFrequencies = metadata.frequencies
+    }
+    
+    private func sortApps(_ apps: [AppInfo], query: String) -> [AppInfo] {
+        let loweredQuery = query.lowercased()
+        return apps.sorted { first, second in
+            let firstPrefix = first.name.lowercased().hasPrefix(loweredQuery)
+            let secondPrefix = second.name.lowercased().hasPrefix(loweredQuery)
+            if firstPrefix != secondPrefix {
+                return firstPrefix
+            }
+            let freq1 = historyFrequencies[first.path, default: 0]
+            let freq2 = historyFrequencies[second.path, default: 0]
+            if freq1 != freq2 {
+                return freq1 > freq2
+            }
+            let order1 = historyOrder[first.path] ?? Int.max
+            let order2 = historyOrder[second.path] ?? Int.max
+            if order1 != order2 {
+                return order1 < order2
+            }
+            return first.name < second.name
         }
     }
 }

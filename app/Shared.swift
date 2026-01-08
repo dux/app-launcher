@@ -18,8 +18,8 @@ extension Notification.Name {
 // MARK: - Constants
 struct AppConstants {
     static let MAIN_FOLDER = (NSHomeDirectory() as NSString).appendingPathComponent(".dux-app-launcher")
-    static let HISTORY_FILE = (MAIN_FOLDER as NSString).appendingPathComponent(".history")
-    static let OPTIONS_FILE = (MAIN_FOLDER as NSString).appendingPathComponent(".options.yaml")
+    static let HISTORY_FILE = (MAIN_FOLDER as NSString).appendingPathComponent("history.txt")
+    static let OPTIONS_FILE = (MAIN_FOLDER as NSString).appendingPathComponent("options.yaml")
 }
 
 // MARK: - Models
@@ -256,57 +256,119 @@ struct AppUtils {
         return nil
     }
     
-    static func loadHistory() -> [AppInfo] {
+    private static func readHistoryPaths() -> [String] {
         guard fileManager.fileExists(atPath: AppConstants.HISTORY_FILE),
               let data = fileManager.contents(atPath: AppConstants.HISTORY_FILE),
-              let historyPaths = String(data: data, encoding: .utf8)?.components(separatedBy: "\n").filter({ !$0.isEmpty }) else {
+              let content = String(data: data, encoding: .utf8) else {
+            return []
+        }
+        let paths = content.components(separatedBy: "\n").filter { !$0.isEmpty }
+        return Array(paths.prefix(50))
+    }
+    
+    private static func appInfo(for path: String, systemCommands: [AppInfo]) -> AppInfo? {
+        if path.hasPrefix("system:"),
+           let command = systemCommands.first(where: { $0.path == path }) {
+            return command
+        }
+        
+        guard fileManager.fileExists(atPath: path) else {
+            return nil
+        }
+        
+        var name = (path as NSString).lastPathComponent
+        let icon: NSImage?
+        
+        if path.hasSuffix(".prefPane") {
+            name = name.replacingOccurrences(of: ".prefPane", with: "")
+            icon = getPrefPaneIcon(for: name)
+        } else if path.hasSuffix(".sh") {
+            name = name.replacingOccurrences(of: ".sh", with: "")
+            icon = nil
+        } else {
+            name = name.replacingOccurrences(of: ".app", with: "")
+            icon = getAppIcon(for: path)
+        }
+        
+        return AppInfo(name: name, path: path, icon: icon)
+    }
+    
+    static func loadHistory() -> [AppInfo] {
+        let historyPaths = readHistoryPaths()
+        guard !historyPaths.isEmpty else {
             return []
         }
         
-        return historyPaths.compactMap { path in
-            var name = (path as NSString).lastPathComponent
-            let icon: NSImage?
-            
-            if path.hasSuffix(".prefPane") {
-                name = name.replacingOccurrences(of: ".prefPane", with: "")
-                icon = getPrefPaneIcon(for: name)
-            } else if path.hasSuffix(".sh") {
-                name = name.replacingOccurrences(of: ".sh", with: "")
-                icon = nil
-            } else {
-                name = name.replacingOccurrences(of: ".app", with: "")
-                icon = getAppIcon(for: path)
+        let systemCommands = getSystemCommands()
+        var seen = Set<String>()
+        var recents: [AppInfo] = []
+        
+        for path in historyPaths {
+            if seen.contains(path) {
+                continue
             }
-            
-            return AppInfo(name: name, path: path, icon: icon)
+            seen.insert(path)
+            if let info = appInfo(for: path, systemCommands: systemCommands) {
+                recents.append(info)
+            }
+            if recents.count == 5 {
+                break
+            }
         }
+        
+        return recents
     }
     
-    static func saveHistory(_ app: AppInfo, currentHistory: [AppInfo]) {
-        var newHistory = currentHistory.map { $0.path }.filter { $0 != app.path }
+    static func loadHistoryMetadata() -> (order: [String: Int], frequencies: [String: Int]) {
+        let historyPaths = readHistoryPaths()
+        var order: [String: Int] = [:]
+        var frequencies: [String: Int] = [:]
+        
+        for (index, path) in historyPaths.enumerated() {
+            frequencies[path, default: 0] += 1
+            if order[path] == nil {
+                order[path] = index
+            }
+        }
+        
+        return (order, frequencies)
+    }
+    
+    static func saveHistory(_ app: AppInfo) {
+        createMainFolder()
+        var newHistory = readHistoryPaths()
         newHistory.insert(app.path, at: 0)
-        newHistory = Array(newHistory.prefix(5))
+        if newHistory.count > 50 {
+            newHistory = Array(newHistory.prefix(50))
+        }
         
         let historyString = newHistory.joined(separator: "\n")
         try? historyString.write(toFile: AppConstants.HISTORY_FILE, atomically: true, encoding: .utf8)
     }
     
-    static func launchApp(_ app: AppInfo, history: [AppInfo], onComplete: @escaping () -> Void) {
-        saveHistory(app, currentHistory: history)
+    static func launchApp(_ app: AppInfo, onComplete: @escaping () -> Void) {
+        saveHistory(app)
         
-        NSApplication.shared.windows.first?.orderOut(nil)
-        
-        if app.path.hasPrefix("system:") {
-            executeSystemCommand(app.path)
-        } else if app.path.hasSuffix(".sh") {
-            runProcess("/bin/bash", [app.path])
-        } else if app.path.hasSuffix(".prefPane") {
-            runProcess("/usr/bin/open", ["-b", "com.apple.systempreferences", app.path])
-        } else {
-            NSWorkspace.shared.open(URL(fileURLWithPath: app.path))
+        let hideWork = {
+            NSApplication.shared.windows.first?.orderOut(nil)
+            NSApp.hide(nil)
         }
+        hideWork()
         
-        onComplete()
+        DispatchQueue.global(qos: .userInitiated).async {
+            if app.path.hasPrefix("system:") {
+                executeSystemCommand(app.path)
+            } else if app.path.hasSuffix(".sh") {
+                runProcess("/bin/bash", [app.path])
+            } else if app.path.hasSuffix(".prefPane") {
+                runProcess("/usr/bin/open", ["-b", "com.apple.systempreferences", app.path])
+            } else {
+                NSWorkspace.shared.open(URL(fileURLWithPath: app.path))
+            }
+            DispatchQueue.main.async {
+                onComplete()
+            }
+        }
     }
     
     static func copyToClipboard(_ text: String) {
