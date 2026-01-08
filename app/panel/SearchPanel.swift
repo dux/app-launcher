@@ -11,9 +11,9 @@ struct SearchPanel: View {
     @State private var includeSystemPreferences = false
     @State private var includeSystemCommands = false
     @FocusState private var isFocused: Bool
-    
+
     var onSettingsLoaded: ((Bool) -> Void)?
-    
+
     var displayApps: [AppInfo] {
         if searchText.isEmpty && !history.isEmpty {
             return Array(history.prefix(5))
@@ -25,13 +25,13 @@ struct SearchPanel: View {
             app.name.localizedCaseInsensitiveContains(searchText)
         }.prefix(200).map { $0 }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             TextField("Search \(appCount) apps & \(scriptCount) scripts...", text: $searchText)
                 .textFieldStyle(.plain)
-                .padding(12)
-                .font(.system(size: 14))
+                .padding(20)
+                .font(.system(size: 20))
                 .background(Color(nsColor: .textBackgroundColor))
                 .focused($isFocused)
                 .onAppear {
@@ -52,7 +52,7 @@ struct SearchPanel: View {
                         history = AppUtils.loadHistory()
                     }
                 }
-            
+
             if displayApps.isEmpty {
                 Text("No apps found")
                     .foregroundColor(.secondary)
@@ -107,7 +107,7 @@ struct SearchPanel: View {
             reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
         }
     }
-    
+
     func reloadApps(_ includePrefs: Bool? = nil, _ includeCommands: Bool? = nil) {
         let shouldIncludePrefs = includePrefs ?? includeSystemPreferences
         let shouldIncludeCommands = includeCommands ?? includeSystemCommands
@@ -116,7 +116,7 @@ struct SearchPanel: View {
         appCount = result.appCount
         scriptCount = result.scriptCount
     }
-    
+
     func launchSelectedApp() {
         guard selectedIndex < displayApps.count else { return }
         let app = displayApps[selectedIndex]

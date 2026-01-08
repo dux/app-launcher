@@ -11,6 +11,8 @@ extension Notification.Name {
     static let searchNavigateDown = Notification.Name("searchNavigateDown")
     static let searchNavigateUp = Notification.Name("searchNavigateUp")
     static let searchLaunchSelected = Notification.Name("searchLaunchSelected")
+    static let scriptsInputFocused = Notification.Name("scriptsInputFocused")
+    static let scriptsInputUnfocused = Notification.Name("scriptsInputUnfocused")
 }
 
 // MARK: - Constants

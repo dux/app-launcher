@@ -63,6 +63,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var hotKeyRef: EventHotKeyRef?
     var hotKeyRef2: EventHotKeyRef?
     var tabMonitor: Any?
+    var isScriptsInputFocused = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         let runningApps = NSWorkspace.shared.runningApplications
@@ -94,20 +95,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Listen for scripts input focus changes
+        NotificationCenter.default.addObserver(forName: .scriptsInputFocused, object: nil, queue: .main) { [weak self] _ in
+            self?.isScriptsInputFocused = true
+        }
+        NotificationCenter.default.addObserver(forName: .scriptsInputUnfocused, object: nil, queue: .main) { [weak self] _ in
+            self?.isScriptsInputFocused = false
+        }
+
         // Register global hotkey: Cmd+Space
         registerHotKey()
 
         // Add local event monitor for arrow keys and Escape
-        tabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        tabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             // Left arrow = keyCode 123
             if event.keyCode == 123 {
-                NotificationCenter.default.post(name: .switchTabLeft, object: nil)
-                return nil // Consume the event
+                if !(self?.isScriptsInputFocused ?? false) {
+                    NotificationCenter.default.post(name: .switchTabLeft, object: nil)
+                    return nil // Consume the event
+                }
             }
             // Right arrow = keyCode 124
             if event.keyCode == 124 {
-                NotificationCenter.default.post(name: .switchTabRight, object: nil)
-                return nil // Consume the event
+                if !(self?.isScriptsInputFocused ?? false) {
+                    NotificationCenter.default.post(name: .switchTabRight, object: nil)
+                    return nil // Consume the event
+                }
             }
             // Escape key = keyCode 53
             if event.keyCode == 53 {

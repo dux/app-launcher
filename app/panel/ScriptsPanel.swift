@@ -6,7 +6,9 @@ struct ScriptsPanel: View {
     @State private var selectedScript: String? = nil
     @State private var scriptName = ""
     @State private var scriptCommand = ""
-    
+    @FocusState private var isNameFieldFocused: Bool
+    @FocusState private var isCommandFieldFocused: Bool
+
     var onScriptsChanged: () -> Void
     
     var body: some View {
@@ -58,6 +60,17 @@ struct ScriptsPanel: View {
                         .frame(width: 60, alignment: .leading)
                     TextField("script name", text: $scriptName)
                         .textFieldStyle(.roundedBorder)
+                        .focused($isNameFieldFocused)
+                        .onChange(of: isNameFieldFocused) { _, newValue in
+                            if newValue {
+                                NotificationCenter.default.post(name: .scriptsInputFocused, object: nil)
+                            } else {
+                                NotificationCenter.default.post(name: .scriptsInputUnfocused, object: nil)
+                            }
+                        }
+                        .onChange(of: scriptName) { _, _ in
+                            NotificationCenter.default.post(name: .scriptsInputFocused, object: nil)
+                        }
                     Text(".sh")
                         .foregroundColor(.secondary)
                 }
@@ -68,6 +81,17 @@ struct ScriptsPanel: View {
                         .font(.system(size: 12, design: .monospaced))
                         .frame(minHeight: 150)
                         .border(Color.gray.opacity(0.3))
+                        .focused($isCommandFieldFocused)
+                        .onChange(of: isCommandFieldFocused) { _, newValue in
+                            if newValue {
+                                NotificationCenter.default.post(name: .scriptsInputFocused, object: nil)
+                            } else {
+                                NotificationCenter.default.post(name: .scriptsInputUnfocused, object: nil)
+                            }
+                        }
+                        .onChange(of: scriptCommand) { _, _ in
+                            NotificationCenter.default.post(name: .scriptsInputFocused, object: nil)
+                        }
                 }
                 
                 HStack {
