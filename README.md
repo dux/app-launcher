@@ -1,6 +1,8 @@
 # Dux App Launcher
 
-Spotlight-like app launcher for macOS.
+Spotlight-like app launcher for macOS. Learn more at [https://dux.github.io/app-launcher/](https://dux.github.io/app-launcher/).
+
+![Dux App Launcher search view](docs/assets/search.png)
 
 ## Install
 
