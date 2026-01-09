@@ -49,7 +49,7 @@ struct SearchPanel: View {
                         isFocused = true
                     }
                 }
-                .onChange(of: searchText) { _, newValue in
+                .onChange(of: searchText) { newValue in
                     selectedIndex = 0
                     if newValue.isEmpty {
                         refreshHistory()
@@ -78,7 +78,7 @@ struct SearchPanel: View {
                             }
                     }
                     .listStyle(.plain)
-                    .onChange(of: selectedIndex) { _, newIndex in
+                    .onChange(of: selectedIndex) { newIndex in
                         withAnimation {
                             proxy.scrollTo(newIndex, anchor: .center)
                         }

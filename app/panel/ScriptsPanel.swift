@@ -61,14 +61,14 @@ struct ScriptsPanel: View {
                     TextField("script name", text: $scriptName)
                         .textFieldStyle(.roundedBorder)
                         .focused($isNameFieldFocused)
-                        .onChange(of: isNameFieldFocused) { _, newValue in
+                        .onChange(of: isNameFieldFocused) { newValue in
                             if newValue {
                                 NotificationCenter.default.post(name: .scriptsInputFocused, object: nil)
                             } else {
                                 NotificationCenter.default.post(name: .scriptsInputUnfocused, object: nil)
                             }
                         }
-                        .onChange(of: scriptName) { _, _ in
+                        .onChange(of: scriptName) { _ in
                             NotificationCenter.default.post(name: .scriptsInputFocused, object: nil)
                         }
                     Text(".sh")
@@ -82,14 +82,14 @@ struct ScriptsPanel: View {
                         .frame(minHeight: 150)
                         .border(Color.gray.opacity(0.3))
                         .focused($isCommandFieldFocused)
-                        .onChange(of: isCommandFieldFocused) { _, newValue in
+                        .onChange(of: isCommandFieldFocused) { newValue in
                             if newValue {
                                 NotificationCenter.default.post(name: .scriptsInputFocused, object: nil)
                             } else {
                                 NotificationCenter.default.post(name: .scriptsInputUnfocused, object: nil)
                             }
                         }
-                        .onChange(of: scriptCommand) { _, _ in
+                        .onChange(of: scriptCommand) { _ in
                             NotificationCenter.default.post(name: .scriptsInputFocused, object: nil)
                         }
                 }
@@ -127,7 +127,7 @@ struct ScriptsPanel: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loadScripts()
         }
-        .onChange(of: selectedScript) { _, newValue in
+        .onChange(of: selectedScript) { newValue in
             if let script = newValue {
                 loadScript(script)
             }

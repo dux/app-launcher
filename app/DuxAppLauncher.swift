@@ -122,6 +122,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     return nil // Consume the event
                 }
             }
+            // Down arrow = keyCode 125
+            if event.keyCode == 125 {
+                if !(self?.isScriptsInputFocused ?? false) {
+                    NotificationCenter.default.post(name: .searchNavigateDown, object: nil)
+                    return nil // Consume the event
+                }
+            }
+            // Up arrow = keyCode 126
+            if event.keyCode == 126 {
+                if !(self?.isScriptsInputFocused ?? false) {
+                    NotificationCenter.default.post(name: .searchNavigateUp, object: nil)
+                    return nil // Consume the event
+                }
+            }
+            // Return key = keyCode 36
+            if event.keyCode == 36 {
+                if !(self?.isScriptsInputFocused ?? false) {
+                    NotificationCenter.default.post(name: .searchLaunchSelected, object: nil)
+                    return nil // Consume the event
+                }
+            }
             // Escape key = keyCode 53
             if event.keyCode == 53 {
                 AppDelegate.hideWindow()
@@ -334,36 +355,18 @@ struct ContentView: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .onChange(of: selectedTab) { _, newTab in
+        .onChange(of: selectedTab) { newTab in
             if newTab == 0 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     NotificationCenter.default.post(name: .focusSearchField, object: nil)
                 }
             }
         }
-        .onKeyPress(.downArrow) {
-            if selectedTab == 0 {
-                NotificationCenter.default.post(name: .searchNavigateDown, object: nil)
-            }
-            return .handled
-        }
-        .onKeyPress(.upArrow) {
-            if selectedTab == 0 {
-                NotificationCenter.default.post(name: .searchNavigateUp, object: nil)
-            }
-            return .handled
-        }
         .onReceive(NotificationCenter.default.publisher(for: .switchTabLeft)) { _ in
             selectedTab = selectedTab > 0 ? selectedTab - 1 : 2
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTabRight)) { _ in
             selectedTab = (selectedTab + 1) % 3
-        }
-        .onKeyPress(.return) {
-            if selectedTab == 0 {
-                NotificationCenter.default.post(name: .searchLaunchSelected, object: nil)
-            }
-            return .handled
         }
     }
 }

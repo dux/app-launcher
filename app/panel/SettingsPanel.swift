@@ -24,7 +24,7 @@ struct SettingsPanel: View {
                 Toggle("", isOn: $launchAtLogin)
                     .toggleStyle(.switch)
                     .labelsHidden()
-                    .onChange(of: launchAtLogin) { _, newValue in
+                    .onChange(of: launchAtLogin) { newValue in
                         toggleLaunchAtLogin(newValue)
                     }
                 Text("Launch at login")
@@ -37,7 +37,7 @@ struct SettingsPanel: View {
                 Toggle("", isOn: $showMenuBarIcon)
                     .toggleStyle(.switch)
                     .labelsHidden()
-                    .onChange(of: showMenuBarIcon) { _, _ in
+                    .onChange(of: showMenuBarIcon) { _ in
                         options.showMenuBarIcon = showMenuBarIcon
                         AppUtils.saveOptions(options)
                         NotificationCenter.default.post(name: .toggleMenuBarIcon, object: showMenuBarIcon)
@@ -52,7 +52,7 @@ struct SettingsPanel: View {
                 Toggle("", isOn: $includeSystemPreferences)
                     .toggleStyle(.switch)
                     .labelsHidden()
-                    .onChange(of: includeSystemPreferences) { _, _ in
+                    .onChange(of: includeSystemPreferences) { _ in
                         options.includeSystemPreferences = includeSystemPreferences
                         AppUtils.saveOptions(options)
                         onSettingsChanged()
@@ -67,7 +67,7 @@ struct SettingsPanel: View {
                 Toggle("", isOn: $includeSystemCommands)
                     .toggleStyle(.switch)
                     .labelsHidden()
-                    .onChange(of: includeSystemCommands) { _, _ in
+                    .onChange(of: includeSystemCommands) { _ in
                         options.includeSystemCommands = includeSystemCommands
                         AppUtils.saveOptions(options)
                         onSettingsChanged()
