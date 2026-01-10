@@ -14,6 +14,12 @@ struct AllPanel: View {
     var displayApps: [AppInfo] {
         if selectedMode == "latest" {
             return sortByLatest(apps)
+        } else if selectedMode == "user" {
+            let userApps = apps.filter { !$0.path.hasPrefix("/System/") }
+            if let letter = selectedLetter {
+                return userApps.filter { $0.name.first?.uppercased() == String(letter) }
+            }
+            return userApps
         } else if let letter = selectedLetter {
             return apps.filter { $0.name.first?.uppercased() == String(letter) }
         }
@@ -73,6 +79,26 @@ struct AllPanel: View {
                 .buttonStyle(.plain)
                 .focused($focusedLetter, equals: "latest")
                 .help("Sort apps by installed time")
+
+                Button(action: {
+                    selectedLetter = nil
+                    selectedMode = "user"
+                    selectedIndex = 0
+                    focusedLetter = "user"
+                }) {
+                    Image(systemName: "person")
+                        .font(.system(size: 10, weight: selectedMode == "user" ? .bold : .regular))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(selectedMode == "user" ? Color.accentColor.opacity(0.3) : Color.clear)
+                        )
+                        .foregroundColor(selectedMode == "user" ? .primary : .secondary)
+                }
+                .buttonStyle(.plain)
+                .focused($focusedLetter, equals: "user")
+                .help("Show only user apps")
 
                 ForEach(availableLetters, id: \.self) { letter in
                     Button(action: {
