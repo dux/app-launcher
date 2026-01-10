@@ -163,7 +163,7 @@ struct AllPanel: View {
         let shouldIncludePrefs = includePrefs ?? includeSystemPreferences
         let shouldIncludeCommands = includeCommands ?? includeSystemCommands
         let result = AppUtils.loadApps(includeSystemPreferences: shouldIncludePrefs, includeSystemCommands: shouldIncludeCommands)
-        apps = result.apps
+        apps = result.apps.filter { !$0.path.hasSuffix(".sh") }
         appCount = result.appCount
         scriptCount = result.scriptCount
     }
