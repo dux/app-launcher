@@ -37,6 +37,49 @@ struct AppOptions {
 }
 
 // MARK: - Shared Views
+struct AppListView: View {
+    let apps: [AppInfo]
+    @Binding var selectedIndex: Int
+    let onLaunch: () -> Void
+    let showDate: Bool
+    
+    init(apps: [AppInfo], selectedIndex: Binding<Int>, onLaunch: @escaping () -> Void, showDate: Bool = false) {
+        self.apps = apps
+        self._selectedIndex = selectedIndex
+        self.onLaunch = onLaunch
+        self.showDate = showDate
+    }
+    
+    var body: some View {
+        ScrollViewReader { proxy in
+            List(apps, id: \.path) { app in
+                if let index = apps.firstIndex(where: { $0.path == app.path }) {
+                    Button {
+                        selectedIndex = index
+                        onLaunch()
+                    } label: {
+                        AppItemRow(app: app, isSelected: index == selectedIndex, showDate: showDate)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowSeparator(.hidden)
+                    .id(index)
+                    .onAppear {
+                        if index == 0 {
+                            selectedIndex = 0
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .onChange(of: selectedIndex) { newIndex in
+                withAnimation {
+                    proxy.scrollTo(newIndex, anchor: .center)
+                }
+            }
+        }
+    }
+}
+
 struct AppItemRow: View {
     let app: AppInfo
     let isSelected: Bool
@@ -141,6 +184,22 @@ struct AppItemRow: View {
 // MARK: - Shared Utilities
 struct AppUtils {
     static let fileManager = FileManager.default
+    private static var lastLaunchTime: Date = Date.distantPast
+    private static var launchLock = NSLock()
+    private static let launchCooldown: TimeInterval = 2.0
+    
+    static func launchAppThrottled(_ app: AppInfo) {
+        launchLock.lock()
+        defer { launchLock.unlock() }
+        
+        let now = Date()
+        if now.timeIntervalSince(lastLaunchTime) < launchCooldown {
+            return
+        }
+        lastLaunchTime = now
+        
+        launchApp(app) {}
+    }
     
     static func createMainFolder() {
         if !fileManager.fileExists(atPath: AppConstants.MAIN_FOLDER) {

@@ -35,6 +35,20 @@ struct AllPanel: View {
         return letters.sorted()
     }
 
+    var infoText: String {
+        if selectedMode == "latest" {
+            return "Showing \(displayApps.count) apps (latest first)"
+        } else if selectedMode == "user" {
+            if let letter = selectedLetter {
+                return "Showing \(displayApps.count) user apps starting with \(letter)"
+            }
+            return "Showing \(displayApps.count) user apps"
+        } else if let letter = selectedLetter {
+            return "Showing \(displayApps.count) apps starting with \(letter)"
+        }
+        return "Showing all \(displayApps.count) apps"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             LazyVGrid(columns: [
@@ -58,7 +72,6 @@ struct AllPanel: View {
                 }
                 .buttonStyle(.plain)
                 .focused($focusedLetter, equals: "all")
-                .help("List all apps")
 
                 Button(action: {
                     selectedLetter = nil
@@ -78,7 +91,6 @@ struct AllPanel: View {
                 }
                 .buttonStyle(.plain)
                 .focused($focusedLetter, equals: "latest")
-                .help("Sort apps by installed time")
 
                 Button(action: {
                     selectedLetter = nil
@@ -98,7 +110,6 @@ struct AllPanel: View {
                 }
                 .buttonStyle(.plain)
                 .focused($focusedLetter, equals: "user")
-                .help("Show only user apps")
 
                 ForEach(availableLetters, id: \.self) { letter in
                     Button(action: {
@@ -125,38 +136,27 @@ struct AllPanel: View {
             .padding(.vertical, 12)
             .frame(maxHeight: 80)
 
-            if displayApps.isEmpty {
-                Text("No apps found")
+            VStack(spacing: 0) {
+                Text(infoText)
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
-                    .padding()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollViewReader { proxy in
-                    List(0..<displayApps.count, id: \.self) { index in
-                        AppItemRow(app: displayApps[index], isSelected: index == selectedIndex, showDate: selectedMode == "latest")
-                            .listRowSeparator(.hidden)
-                            .id(index)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedIndex = index
-                                launchSelectedApp()
-                            }
-                            .onAppear {
-                                if index == 0 {
-                                    selectedIndex = 0
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                
+                if displayApps.isEmpty {
+                    Text("No apps found")
+                        .foregroundColor(.secondary)
+                        .padding()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollViewReader { proxy in
+                        AppListView(apps: displayApps, selectedIndex: $selectedIndex, onLaunch: launchSelectedApp, showDate: selectedMode == "latest")
+                            .onChange(of: selectedLetter) { _ in
+                                withAnimation {
+                                    proxy.scrollTo(0, anchor: .top)
                                 }
                             }
-                    }
-                    .listStyle(.plain)
-                    .onChange(of: selectedIndex) { newIndex in
-                        withAnimation {
-                            proxy.scrollTo(newIndex, anchor: .center)
-                        }
-                    }
-                    .onChange(of: selectedLetter) { _ in
-                        withAnimation {
-                            proxy.scrollTo(0, anchor: .top)
-                        }
                     }
                 }
             }
@@ -197,6 +197,6 @@ struct AllPanel: View {
     func launchSelectedApp() {
         guard selectedIndex < displayApps.count else { return }
         let app = displayApps[selectedIndex]
-        AppUtils.launchApp(app) {}
+        AppUtils.launchAppThrottled(app)
     }
 }

@@ -62,29 +62,7 @@ struct SearchPanel: View {
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollViewReader { proxy in
-                    List(0..<displayApps.count, id: \.self) { index in
-                        AppItemRow(app: displayApps[index], isSelected: index == selectedIndex)
-                            .listRowSeparator(.hidden)
-                            .id(index)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedIndex = index
-                                launchSelectedApp()
-                            }
-                            .onAppear {
-                                if index == 0 {
-                                    selectedIndex = 0
-                                }
-                            }
-                    }
-                    .listStyle(.plain)
-                    .onChange(of: selectedIndex) { newIndex in
-                        withAnimation {
-                            proxy.scrollTo(newIndex, anchor: .center)
-                        }
-                    }
-                }
+                AppListView(apps: displayApps, selectedIndex: $selectedIndex, onLaunch: launchSelectedApp)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusSearchField)) { _ in
@@ -101,7 +79,9 @@ struct SearchPanel: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchLaunchSelected)) { _ in
-            launchSelectedApp()
+            if isFocused {
+                launchSelectedApp()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
             // Re-read options since settings may have changed
@@ -124,10 +104,9 @@ struct SearchPanel: View {
     func launchSelectedApp() {
         guard selectedIndex < displayApps.count else { return }
         let app = displayApps[selectedIndex]
-        AppUtils.launchApp(app) {
-            searchText = ""
-            refreshHistory()
-        }
+        AppUtils.launchAppThrottled(app)
+        searchText = ""
+        refreshHistory()
     }
     
     private func refreshHistory() {
