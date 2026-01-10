@@ -137,10 +137,9 @@ struct AllPanel: View {
         }
         .onAppear {
             AppUtils.createMainFolder()
-            let opts = AppUtils.loadOptions()
-            includeSystemPreferences = opts.includeSystemPreferences
-            includeSystemCommands = opts.includeSystemCommands
-            reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
+            includeSystemPreferences = false
+            includeSystemCommands = false
+            reloadApps(false, false)
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchNavigateDown)) { _ in
             if selectedIndex < displayApps.count - 1 {
@@ -156,10 +155,7 @@ struct AllPanel: View {
             launchSelectedApp()
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
-            let opts = AppUtils.loadOptions()
-            includeSystemPreferences = opts.includeSystemPreferences
-            includeSystemCommands = opts.includeSystemCommands
-            reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
+            reloadApps(false, false)
         }
     }
 
