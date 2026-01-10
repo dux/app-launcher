@@ -251,7 +251,6 @@ struct AppUtils {
             if let contents = try? fileManager.contentsOfDirectory(atPath: prefPanesPath) {
                 let prefPanes = contents.compactMap { fileName -> AppInfo? in
                     if fileName.hasSuffix(".prefPane") {
-                        appCountTemp += 1
                         let fullPath = "\(prefPanesPath)/\(fileName)"
                         let appName = fileName.replacingOccurrences(of: ".prefPane", with: "")
                         let icon = getPrefPaneIcon(for: appName)
