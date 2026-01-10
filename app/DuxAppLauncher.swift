@@ -345,7 +345,14 @@ struct ContentView: View {
             .tag(2)
         }
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .automatic) {
+                Button(action: {
+                    NotificationCenter.default.post(name: .reloadApps, object: nil)
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help("Refresh app list")
+                
                 Button(action: {
                     NSApplication.shared.terminate(nil)
                 }) {

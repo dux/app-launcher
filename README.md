@@ -37,6 +37,8 @@ or [Install binary](https://github.com/dux/app-launcher/releases) from GitHub re
 - Toggle inclusion of macOS System Settings panes and curated system commands (Sleep, Lock Screen, Restart, Shutdown).
 - One-click options for showing a menu bar icon and launching at login (via `SMAppService`).
 - Context menus on search results to copy paths, open apps, reveal packages, or jump straight to Finder.
+- Quick refresh button to reload app list without restarting the app.
+- "Move to Trash" option on context menu to remove unwanted apps/scripts from search results.
 
 ### Settings Panel
 - Launch at login toggle backed by `SMAppService.mainApp`.

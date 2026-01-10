@@ -82,6 +82,12 @@ struct AppItemRow: View {
             Button(app.path.hasSuffix(".app") ? "Open app package" : "Open Folder") {
                 AppUtils.openFolder(app.path)
             }
+            if !app.path.hasPrefix("system:") {
+                Divider()
+                Button("Move to Trash", role: .destructive) {
+                    AppUtils.moveToTrash(app.path)
+                }
+            }
         }
     }
 }
@@ -402,6 +408,12 @@ struct AppUtils {
             let folderUrl = url.deletingLastPathComponent()
             NSWorkspace.shared.open(folderUrl)
         }
+    }
+    
+    static func moveToTrash(_ path: String) {
+        let url = URL(fileURLWithPath: path)
+        try? fileManager.trashItem(at: url, resultingItemURL: nil)
+        NotificationCenter.default.post(name: .reloadApps, object: nil)
     }
     
     static func getSystemCommands() -> [AppInfo] {
