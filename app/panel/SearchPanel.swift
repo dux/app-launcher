@@ -67,6 +67,7 @@ struct SearchPanel: View {
                         AppItemRow(app: displayApps[index], isSelected: index == selectedIndex)
                             .listRowSeparator(.hidden)
                             .id(index)
+                            .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedIndex = index
                                 launchSelectedApp()

@@ -27,6 +27,7 @@ struct AppInfo {
     let name: String
     let path: String
     let icon: NSImage?
+    let creationDate: Date
 }
 
 struct AppOptions {
@@ -39,6 +40,13 @@ struct AppOptions {
 struct AppItemRow: View {
     let app: AppInfo
     let isSelected: Bool
+    let showDate: Bool
+    
+    init(app: AppInfo, isSelected: Bool, showDate: Bool = false) {
+        self.app = app
+        self.isSelected = isSelected
+        self.showDate = showDate
+    }
     
     var body: some View {
         HStack {
@@ -59,6 +67,13 @@ struct AppItemRow: View {
                     .font(.system(size: 13))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
+                    .padding(.top, 3)
+                if showDate {
+                    Text("Added • " + formatDate(app.creationDate) + " • " + addedAgoToHuman(app.creationDate))
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                        .padding(.top, 3)
+                }
             }
             Spacer()
         }
@@ -90,6 +105,37 @@ struct AppItemRow: View {
             }
         }
     }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+    
+    private func addedAgoToHuman(_ date: Date) -> String {
+        let now = Date()
+        let interval = now.timeIntervalSince(date)
+        
+        if interval < 60 {
+            return "just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes) minute\(minutes == 1 ? "" : "s") ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours) hour\(hours == 1 ? "" : "s") ago"
+        } else if interval < 2592000 {
+            let days = Int(interval / 86400)
+            return "\(days) day\(days == 1 ? "" : "s") ago"
+        } else if interval < 31536000 {
+            let months = Int(interval / 2592000)
+            return "\(months) month\(months == 1 ? "" : "s") ago"
+        } else {
+            let years = Int(interval / 31536000)
+            return "\(years) year\(years == 1 ? "" : "s") ago"
+        }
+    }
 }
 
 // MARK: - Shared Utilities
@@ -104,6 +150,22 @@ struct AppUtils {
     
     static func getAppIcon(for path: String) -> NSImage? {
         return NSWorkspace.shared.icon(forFile: path)
+    }
+
+    static func getFileCreationDate(_ path: String) -> Date {
+        if path.hasPrefix("system:") {
+            return Date.distantPast
+        }
+        do {
+            let attributes = try fileManager.attributesOfItem(atPath: path)
+            if let creationDate = attributes[.creationDate] as? Date {
+                return creationDate
+            }
+            if let modificationDate = attributes[.modificationDate] as? Date {
+                return modificationDate
+            }
+        } catch {}
+        return Date.distantPast
     }
     
     static func loadOptions() -> AppOptions {
@@ -159,7 +221,8 @@ struct AppUtils {
                         let fullPath = "\(appPath)/\(fileName)"
                         if let appName = fileName.dropLast(4).description as String? {
                             let icon = getAppIcon(for: fullPath)
-                            return AppInfo(name: appName, path: fullPath, icon: icon)
+                            let creationDate = getFileCreationDate(fullPath)
+                            return AppInfo(name: appName, path: fullPath, icon: icon, creationDate: creationDate)
                         }
                     }
                     return nil
@@ -174,7 +237,8 @@ struct AppUtils {
                     scriptCountTemp += 1
                     let fullPath = "\(AppConstants.MAIN_FOLDER)/\(fileName)"
                     let appName = fileName.replacingOccurrences(of: ".sh", with: "")
-                    return AppInfo(name: appName, path: fullPath, icon: nil)
+                    let creationDate = getFileCreationDate(fullPath)
+                    return AppInfo(name: appName, path: fullPath, icon: nil, creationDate: creationDate)
                 }
                 return nil
             }
@@ -191,7 +255,8 @@ struct AppUtils {
                         let fullPath = "\(prefPanesPath)/\(fileName)"
                         let appName = fileName.replacingOccurrences(of: ".prefPane", with: "")
                         let icon = getPrefPaneIcon(for: appName)
-                        return AppInfo(name: appName, path: fullPath, icon: icon)
+                        let creationDate = getFileCreationDate(fullPath)
+                        return AppInfo(name: appName, path: fullPath, icon: icon, creationDate: creationDate)
                     }
                     return nil
                 }
@@ -296,7 +361,8 @@ struct AppUtils {
             icon = getAppIcon(for: path)
         }
         
-        return AppInfo(name: name, path: path, icon: icon)
+        let creationDate = getFileCreationDate(path)
+        return AppInfo(name: name, path: path, icon: icon, creationDate: creationDate)
     }
     
     static func loadHistory() -> [AppInfo] {
@@ -418,10 +484,10 @@ struct AppUtils {
     
     static func getSystemCommands() -> [AppInfo] {
         return [
-            AppInfo(name: "Sleep", path: "system:sleep", icon: createSystemCommandIcon("moon.zzz.fill")),
-            AppInfo(name: "Lock Screen", path: "system:lock", icon: createSystemCommandIcon("lock")),
-            AppInfo(name: "Restart", path: "system:restart", icon: createSystemCommandIcon("arrow.clockwise")),
-            AppInfo(name: "Shutdown", path: "system:shutdown", icon: createSystemCommandIcon("power"))
+            AppInfo(name: "Sleep", path: "system:sleep", icon: createSystemCommandIcon("moon.zzz.fill"), creationDate: Date.distantPast),
+            AppInfo(name: "Lock Screen", path: "system:lock", icon: createSystemCommandIcon("lock"), creationDate: Date.distantPast),
+            AppInfo(name: "Restart", path: "system:restart", icon: createSystemCommandIcon("arrow.clockwise"), creationDate: Date.distantPast),
+            AppInfo(name: "Shutdown", path: "system:shutdown", icon: createSystemCommandIcon("power"), creationDate: Date.distantPast)
         ]
     }
     

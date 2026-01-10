@@ -31,7 +31,7 @@ struct DuxAppLauncher: App {
         Usage:
         • Cmd+Space / Cmd+Shift+Space: Toggle launcher
         • Type: Search apps/scripts
-        • ←/→: Switch tabs (Search/Settings/Scripts)
+        • ←/→: Switch tabs (Search/All/Settings/Scripts)
         • ↑/↓: Navigate list
         • Enter: Launch selected
         • Esc: Hide window
@@ -322,6 +322,12 @@ struct ContentView: View {
             }
             .tag(0)
 
+            AllPanel()
+            .tabItem {
+                Label("All", systemImage: "app")
+            }
+            .tag(1)
+
             SettingsPanel(
                 launchAtLogin: $launchAtLogin,
                 includeSystemPreferences: $includeSystemPreferences,
@@ -334,7 +340,7 @@ struct ContentView: View {
             .tabItem {
                 Label("Settings", systemImage: "gearshape")
             }
-            .tag(1)
+            .tag(2)
 
             ScriptsPanel(onScriptsChanged: {
                 NotificationCenter.default.post(name: .reloadApps, object: nil)
@@ -342,7 +348,7 @@ struct ContentView: View {
             .tabItem {
                 Label("Scripts", systemImage: "terminal")
             }
-            .tag(2)
+            .tag(3)
         }
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
@@ -370,10 +376,10 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTabLeft)) { _ in
-            selectedTab = selectedTab > 0 ? selectedTab - 1 : 2
+            selectedTab = selectedTab > 0 ? selectedTab - 1 : 3
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTabRight)) { _ in
-            selectedTab = (selectedTab + 1) % 3
+            selectedTab = (selectedTab + 1) % 4
         }
     }
 }

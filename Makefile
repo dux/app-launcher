@@ -16,7 +16,7 @@ default: install-local
 build:
 	@echo "Building $(APP_NAME)..."
 	@mkdir -p bin
-	@swiftc -target arm64-apple-macosx13.0 -parse-as-library app/DuxAppLauncher.swift app/Shared.swift app/panel/SearchPanel.swift app/panel/SettingsPanel.swift app/panel/ScriptsPanel.swift -o "bin/$(APP_NAME)"
+	@swiftc -target arm64-apple-macosx13.0 -parse-as-library app/DuxAppLauncher.swift app/Shared.swift app/panel/SearchPanel.swift app/panel/AllPanel.swift app/panel/SettingsPanel.swift app/panel/ScriptsPanel.swift -o "bin/$(APP_NAME)"
 	@echo "✓ Build complete"
 	@rm -rf "bin/$(APP_NAME).app"
 	@mkdir -p "bin/$(APP_NAME).app/Contents/MacOS"
