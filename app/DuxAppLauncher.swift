@@ -308,6 +308,7 @@ struct ContentView: View {
     @State private var includeSystemPreferences = false
     @State private var includeSystemCommands = false
     @State private var showMenuBarIcon = true
+    @State private var selectedAppPath: String? = nil
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -315,14 +316,17 @@ struct ContentView: View {
                 onSettingsLoaded: { prefs in
                     includeSystemPreferences = prefs
                     showMenuBarIcon = AppUtils.loadOptions().showMenuBarIcon
-                }
+                },
+                selectedAppPath: $selectedAppPath
             )
             .tabItem {
                 Label("Search", systemImage: "magnifyingglass")
             }
             .tag(0)
 
-            AllPanel()
+            AllPanel(
+                selectedAppPath: $selectedAppPath
+            )
             .tabItem {
                 Label("All", systemImage: "app")
             }
@@ -358,7 +362,7 @@ struct ContentView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .help("Refresh app list")
-                
+
                 Button(action: {
                     NSApplication.shared.terminate(nil)
                 }) {
@@ -369,6 +373,7 @@ struct ContentView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: selectedTab) { newTab in
+            NotificationCenter.default.post(name: .tabSwitched, object: nil)
             if newTab == 0 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     NotificationCenter.default.post(name: .focusSearchField, object: nil)
@@ -381,5 +386,16 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .switchTabRight)) { _ in
             selectedTab = (selectedTab + 1) % 4
         }
+        // bottom path render
+        // .overlay(alignment: .bottom) {
+        //     if let path = selectedAppPath {
+        //         Text(path.hasPrefix(NSHomeDirectory()) ? path.replacingOccurrences(of: NSHomeDirectory(), with: "~") : path)
+        //             .font(.system(size: 11))
+        //             .foregroundColor(.secondary)
+        //             .padding(8)
+        //             .frame(maxWidth: .infinity, alignment: .leading)
+        //             .background(Color(nsColor: .controlBackgroundColor))
+        //     }
+        // }
     }
 }

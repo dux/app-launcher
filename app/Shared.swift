@@ -13,6 +13,7 @@ extension Notification.Name {
     static let searchLaunchSelected = Notification.Name("searchLaunchSelected")
     static let scriptsInputFocused = Notification.Name("scriptsInputFocused")
     static let scriptsInputUnfocused = Notification.Name("scriptsInputUnfocused")
+    static let tabSwitched = Notification.Name("tabSwitched")
 }
 
 // MARK: - Constants
@@ -40,38 +41,44 @@ struct AppOptions {
 struct AppListView: View {
     let apps: [AppInfo]
     @Binding var selectedIndex: Int
-    let onLaunch: () -> Void
+    let onActivate: (AppInfo) -> Void
     let showDate: Bool
-    
-    init(apps: [AppInfo], selectedIndex: Binding<Int>, onLaunch: @escaping () -> Void, showDate: Bool = false) {
+    @Binding var selectedAppPath: String?
+
+    init(apps: [AppInfo], selectedIndex: Binding<Int>, onActivate: @escaping (AppInfo) -> Void, showDate: Bool = false, selectedAppPath: Binding<String?> = .constant(nil)) {
         self.apps = apps
         self._selectedIndex = selectedIndex
-        self.onLaunch = onLaunch
+        self.onActivate = onActivate
         self.showDate = showDate
+        self._selectedAppPath = selectedAppPath
     }
-    
+
     var body: some View {
         ScrollViewReader { proxy in
-            List(apps, id: \.path) { app in
-                if let index = apps.firstIndex(where: { $0.path == app.path }) {
+            List {
+                ForEach(Array(apps.enumerated()), id: \.element.path) { item in
+                    let index = item.offset
+                    let app = item.element
+
                     Button {
                         selectedIndex = index
-                        onLaunch()
+                        onActivate(app)
                     } label: {
-                        AppItemRow(app: app, isSelected: index == selectedIndex, showDate: showDate)
+                        AppItemRow(app: app, isSelected: index == selectedIndex, showDate: showDate, selectedAppPath: $selectedAppPath)
                     }
                     .buttonStyle(.plain)
                     .listRowSeparator(.hidden)
                     .id(index)
-                    .onAppear {
-                        if index == 0 {
-                            selectedIndex = 0
-                        }
-                    }
                 }
             }
             .listStyle(.plain)
+            .onChange(of: apps.count) { _ in
+                if selectedIndex >= apps.count {
+                    selectedIndex = max(0, apps.count - 1)
+                }
+            }
             .onChange(of: selectedIndex) { newIndex in
+                guard newIndex >= 0, newIndex < apps.count else { return }
                 withAnimation {
                     proxy.scrollTo(newIndex, anchor: .center)
                 }
@@ -84,13 +91,15 @@ struct AppItemRow: View {
     let app: AppInfo
     let isSelected: Bool
     let showDate: Bool
-    
-    init(app: AppInfo, isSelected: Bool, showDate: Bool = false) {
+    @Binding var selectedAppPath: String?
+
+    init(app: AppInfo, isSelected: Bool, showDate: Bool = false, selectedAppPath: Binding<String?> = .constant(nil)) {
         self.app = app
         self.isSelected = isSelected
         self.showDate = showDate
+        self._selectedAppPath = selectedAppPath
     }
-    
+
     var body: some View {
         HStack {
             if let icon = app.icon {
@@ -130,6 +139,11 @@ struct AppItemRow: View {
                 }
             }
         )
+        .onChange(of: isSelected) { newValue in
+            if newValue {
+                selectedAppPath = app.path
+            }
+        }
         .contextMenu {
             Button("Copy Path") {
                 AppUtils.copyToClipboard(app.path)
@@ -148,18 +162,18 @@ struct AppItemRow: View {
             }
         }
     }
-    
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter.string(from: date)
     }
-    
+
     private func addedAgoToHuman(_ date: Date) -> String {
         let now = Date()
         let interval = now.timeIntervalSince(date)
-        
+
         if interval < 60 {
             return "just now"
         } else if interval < 3600 {
@@ -187,26 +201,30 @@ struct AppUtils {
     private static var lastLaunchTime: Date = Date.distantPast
     private static var launchLock = NSLock()
     private static let launchCooldown: TimeInterval = 2.0
-    
+
     static func launchAppThrottled(_ app: AppInfo) {
         launchLock.lock()
         defer { launchLock.unlock() }
-        
+
         let now = Date()
         if now.timeIntervalSince(lastLaunchTime) < launchCooldown {
             return
         }
         lastLaunchTime = now
-        
+
         launchApp(app) {}
     }
-    
+
+    static func activateApp(_ app: AppInfo) {
+        launchAppThrottled(app)
+    }
+
     static func createMainFolder() {
         if !fileManager.fileExists(atPath: AppConstants.MAIN_FOLDER) {
             try? fileManager.createDirectory(atPath: AppConstants.MAIN_FOLDER, withIntermediateDirectories: true)
         }
     }
-    
+
     static func getAppIcon(for path: String) -> NSImage? {
         return NSWorkspace.shared.icon(forFile: path)
     }
@@ -226,14 +244,14 @@ struct AppUtils {
         } catch {}
         return Date.distantPast
     }
-    
+
     static func loadOptions() -> AppOptions {
         guard fileManager.fileExists(atPath: AppConstants.OPTIONS_FILE),
               let data = fileManager.contents(atPath: AppConstants.OPTIONS_FILE),
               let content = String(data: data, encoding: .utf8) else {
             return AppOptions(includeSystemPreferences: false, showMenuBarIcon: true, includeSystemCommands: false)
         }
-        
+
         var options = AppOptions(includeSystemPreferences: false, showMenuBarIcon: true, includeSystemCommands: false)
         for line in content.components(separatedBy: "\n") {
             let parts = line.split(separator: ":", maxSplits:1).map { $0.trimmingCharacters(in: .whitespaces) }
@@ -251,7 +269,7 @@ struct AppUtils {
         }
         return options
     }
-    
+
     static func saveOptions(_ options: AppOptions) {
         let content = """
         include_system_preferences: \(options.includeSystemPreferences)
@@ -260,18 +278,18 @@ struct AppUtils {
         """
         try? content.write(toFile: AppConstants.OPTIONS_FILE, atomically: true, encoding: .utf8)
     }
-    
+
     static func loadApps(includeSystemPreferences: Bool, includeSystemCommands: Bool) -> (apps: [AppInfo], appCount: Int, scriptCount: Int) {
         var allApps: [AppInfo] = []
         var appCountTemp = 0
         var scriptCountTemp = 0
-        
+
         let appPaths = [
             "/Applications",
             "/System/Applications",
             (NSHomeDirectory() as NSString).appendingPathComponent("Applications")
         ]
-        
+
         for appPath in appPaths {
             if let contents = try? fileManager.contentsOfDirectory(atPath: appPath) {
                 let folderApps = contents.compactMap { fileName -> AppInfo? in
@@ -289,7 +307,7 @@ struct AppUtils {
                 allApps.append(contentsOf: folderApps)
             }
         }
-        
+
         if let contents = try? fileManager.contentsOfDirectory(atPath: AppConstants.MAIN_FOLDER) {
             let shellApps = contents.compactMap { fileName -> AppInfo? in
                 if fileName.hasSuffix(".sh") {
@@ -303,7 +321,7 @@ struct AppUtils {
             }
             allApps.append(contentsOf: shellApps)
         }
-        
+
         // Add System Preferences panes if enabled
         if includeSystemPreferences {
             let prefPanesPath = "/System/Library/PreferencePanes"
@@ -321,15 +339,15 @@ struct AppUtils {
                 allApps.append(contentsOf: prefPanes)
             }
         }
-        
+
         // Add System Commands if enabled
         if includeSystemCommands {
             allApps.append(contentsOf: getSystemCommands())
         }
-        
+
         return (allApps.sorted { $0.name < $1.name }, appCountTemp, scriptCountTemp)
     }
-    
+
     static func getPrefPaneIcon(for name: String) -> NSImage? {
         // Map preference pane names to SF Symbols
         let iconMap: [String: String] = [
@@ -374,7 +392,7 @@ struct AppUtils {
             "UniversalAccessPref": "accessibility",
             "Wallet": "wallet.pass"
         ]
-        
+
         let symbolName = iconMap[name] ?? "gearshape"
         if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: name) {
             image.size = NSSize(width: 32, height: 32)
@@ -384,7 +402,7 @@ struct AppUtils {
         }
         return nil
     }
-    
+
     private static func readHistoryPaths() -> [String] {
         guard fileManager.fileExists(atPath: AppConstants.HISTORY_FILE),
               let data = fileManager.contents(atPath: AppConstants.HISTORY_FILE),
@@ -394,20 +412,20 @@ struct AppUtils {
         let paths = content.components(separatedBy: "\n").filter { !$0.isEmpty }
         return Array(paths.prefix(50))
     }
-    
+
     private static func appInfo(for path: String, systemCommands: [AppInfo]) -> AppInfo? {
         if path.hasPrefix("system:"),
            let command = systemCommands.first(where: { $0.path == path }) {
             return command
         }
-        
+
         guard fileManager.fileExists(atPath: path) else {
             return nil
         }
-        
+
         var name = (path as NSString).lastPathComponent
         let icon: NSImage?
-        
+
         if path.hasSuffix(".prefPane") {
             name = name.replacingOccurrences(of: ".prefPane", with: "")
             icon = getPrefPaneIcon(for: name)
@@ -418,21 +436,21 @@ struct AppUtils {
             name = name.replacingOccurrences(of: ".app", with: "")
             icon = getAppIcon(for: path)
         }
-        
+
         let creationDate = getFileCreationDate(path)
         return AppInfo(name: name, path: path, icon: icon, creationDate: creationDate)
     }
-    
+
     static func loadHistory() -> [AppInfo] {
         let historyPaths = readHistoryPaths()
         guard !historyPaths.isEmpty else {
             return []
         }
-        
+
         let systemCommands = getSystemCommands()
         var seen = Set<String>()
         var recents: [AppInfo] = []
-        
+
         for path in historyPaths {
             if seen.contains(path) {
                 continue
@@ -445,25 +463,25 @@ struct AppUtils {
                 break
             }
         }
-        
+
         return recents
     }
-    
+
     static func loadHistoryMetadata() -> (order: [String: Int], frequencies: [String: Int]) {
         let historyPaths = readHistoryPaths()
         var order: [String: Int] = [:]
         var frequencies: [String: Int] = [:]
-        
+
         for (index, path) in historyPaths.enumerated() {
             frequencies[path, default: 0] += 1
             if order[path] == nil {
                 order[path] = index
             }
         }
-        
+
         return (order, frequencies)
     }
-    
+
     static func saveHistory(_ app: AppInfo) {
         createMainFolder()
         var newHistory = readHistoryPaths()
@@ -471,20 +489,20 @@ struct AppUtils {
         if newHistory.count > 50 {
             newHistory = Array(newHistory.prefix(50))
         }
-        
+
         let historyString = newHistory.joined(separator: "\n")
         try? historyString.write(toFile: AppConstants.HISTORY_FILE, atomically: true, encoding: .utf8)
     }
-    
+
     static func launchApp(_ app: AppInfo, onComplete: @escaping () -> Void) {
         saveHistory(app)
-        
+
         let hideWork = {
             NSApplication.shared.windows.first?.orderOut(nil)
             NSApp.hide(nil)
         }
         hideWork()
-        
+
         DispatchQueue.global(qos: .userInitiated).async {
             if app.path.hasPrefix("system:") {
                 executeSystemCommand(app.path)
@@ -500,25 +518,25 @@ struct AppUtils {
             }
         }
     }
-    
+
     static func copyToClipboard(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
-    
+
     static func openInFinder(_ path: String) {
         let url = URL(fileURLWithPath: path)
-        
+
         if path.hasSuffix(".app") {
             NSWorkspace.shared.open(url)
         } else {
             NSWorkspace.shared.activateFileViewerSelecting([url])
         }
     }
-    
+
     static func openFolder(_ path: String) {
         let url = URL(fileURLWithPath: path)
-        
+
         if path.hasSuffix(".app") {
             let contentsPath = "\(path)/Contents"
             let script = """
@@ -533,13 +551,13 @@ struct AppUtils {
             NSWorkspace.shared.open(folderUrl)
         }
     }
-    
+
     static func moveToTrash(_ path: String) {
         let url = URL(fileURLWithPath: path)
         try? fileManager.trashItem(at: url, resultingItemURL: nil)
         NotificationCenter.default.post(name: .reloadApps, object: nil)
     }
-    
+
     static func getSystemCommands() -> [AppInfo] {
         return [
             AppInfo(name: "Sleep", path: "system:sleep", icon: createSystemCommandIcon("moon.zzz.fill"), creationDate: Date.distantPast),
@@ -548,18 +566,18 @@ struct AppUtils {
             AppInfo(name: "Shutdown", path: "system:shutdown", icon: createSystemCommandIcon("power"), creationDate: Date.distantPast)
         ]
     }
-    
+
     static func runProcess(_ executable: String, _ arguments: [String]) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         try? process.run()
     }
-    
+
     static func runAppleScript(_ script: String) {
         runProcess("/usr/bin/osascript", ["-e", script])
     }
-    
+
     static func executeSystemCommand(_ path: String) {
         switch path {
         case "system:sleep":
@@ -575,7 +593,7 @@ struct AppUtils {
             break
         }
     }
-    
+
     static func createSystemCommandIcon(_ symbolName: String) -> NSImage? {
         if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: symbolName) {
             let config = NSImage.SymbolConfiguration(pointSize: 32, weight: .regular)

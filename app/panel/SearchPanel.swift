@@ -15,6 +15,7 @@ struct SearchPanel: View {
     @FocusState private var isFocused: Bool
 
     var onSettingsLoaded: ((Bool) -> Void)?
+    @Binding var selectedAppPath: String?
 
     var displayApps: [AppInfo] {
         if searchText.isEmpty {
@@ -45,6 +46,9 @@ struct SearchPanel: View {
                     onSettingsLoaded?(opts.includeSystemPreferences)
                     reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
                     refreshHistory()
+                    if !displayApps.isEmpty {
+                        selectedAppPath = displayApps[0].path
+                    }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         isFocused = true
                     }
@@ -54,6 +58,9 @@ struct SearchPanel: View {
                     if newValue.isEmpty {
                         refreshHistory()
                     }
+                    if !displayApps.isEmpty {
+                        selectedAppPath = displayApps[0].path
+                    }
                 }
 
             if displayApps.isEmpty {
@@ -62,7 +69,7 @@ struct SearchPanel: View {
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                AppListView(apps: displayApps, selectedIndex: $selectedIndex, onLaunch: launchSelectedApp)
+                AppListView(apps: displayApps, selectedIndex: $selectedIndex, onActivate: handleAppActivation, selectedAppPath: $selectedAppPath)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusSearchField)) { _ in
@@ -80,7 +87,7 @@ struct SearchPanel: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchLaunchSelected)) { _ in
             if isFocused {
-                launchSelectedApp()
+                activateSelectedApp()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
@@ -89,6 +96,12 @@ struct SearchPanel: View {
             includeSystemPreferences = opts.includeSystemPreferences
             includeSystemCommands = opts.includeSystemCommands
             reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tabSwitched)) { _ in
+            selectedIndex = 0
+            if !displayApps.isEmpty {
+                selectedAppPath = displayApps[0].path
+            }
         }
     }
 
@@ -101,10 +114,14 @@ struct SearchPanel: View {
         scriptCount = result.scriptCount
     }
 
-    func launchSelectedApp() {
-        guard selectedIndex < displayApps.count else { return }
-        let app = displayApps[selectedIndex]
-        AppUtils.launchAppThrottled(app)
+    func activateSelectedApp() {
+        guard let path = selectedAppPath,
+              let app = displayApps.first(where: { $0.path == path }) else { return }
+        handleAppActivation(app)
+    }
+
+    private func handleAppActivation(_ app: AppInfo) {
+        AppUtils.activateApp(app)
         searchText = ""
         refreshHistory()
     }

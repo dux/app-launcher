@@ -10,6 +10,7 @@ struct AllPanel: View {
     @State private var scriptCount = 0
     @State private var includeSystemPreferences = false
     @State private var includeSystemCommands = false
+    @Binding var selectedAppPath: String?
 
     var displayApps: [AppInfo] {
         if selectedMode == "latest" {
@@ -151,7 +152,7 @@ struct AllPanel: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollViewReader { proxy in
-                        AppListView(apps: displayApps, selectedIndex: $selectedIndex, onLaunch: launchSelectedApp, showDate: selectedMode == "latest")
+                        AppListView(apps: displayApps, selectedIndex: $selectedIndex, onActivate: AppUtils.activateApp, showDate: selectedMode == "latest", selectedAppPath: $selectedAppPath)
                             .onChange(of: selectedLetter) { _ in
                                 withAnimation {
                                     proxy.scrollTo(0, anchor: .top)
@@ -178,10 +179,16 @@ struct AllPanel: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchLaunchSelected)) { _ in
-            launchSelectedApp()
+            activateSelectedApp()
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
             reloadApps(false, false)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tabSwitched)) { _ in
+            selectedIndex = 0
+            if !displayApps.isEmpty {
+                selectedAppPath = displayApps[0].path
+            }
         }
     }
 
@@ -194,9 +201,9 @@ struct AllPanel: View {
         scriptCount = result.scriptCount
     }
 
-    func launchSelectedApp() {
-        guard selectedIndex < displayApps.count else { return }
-        let app = displayApps[selectedIndex]
-        AppUtils.launchAppThrottled(app)
+    func activateSelectedApp() {
+        guard let path = selectedAppPath,
+              let app = displayApps.first(where: { $0.path == path }) else { return }
+        AppUtils.activateApp(app)
     }
 }
