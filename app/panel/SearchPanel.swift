@@ -20,7 +20,7 @@ struct SearchPanel: View {
     var displayApps: [AppInfo] {
         if searchText.isEmpty {
             if !history.isEmpty {
-                return Array(history.prefix(5))
+                return Array(history.prefix(10))
             }
             return Array(apps.prefix(200))
         }
@@ -32,36 +32,41 @@ struct SearchPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Search \(appCount) apps & \(scriptCount) scripts...", text: $searchText)
-                .textFieldStyle(.plain)
-                .padding(20)
-                .font(.system(size: 20))
-                .background(Color(nsColor: .textBackgroundColor))
-                .focused($isFocused)
-                .onAppear {
-                    AppUtils.createMainFolder()
-                    let opts = AppUtils.loadOptions()
-                    includeSystemPreferences = opts.includeSystemPreferences
-                    includeSystemCommands = opts.includeSystemCommands
-                    onSettingsLoaded?(opts.includeSystemPreferences)
-                    reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 20))
+                    .foregroundColor(.secondary)
+                TextField("Search \(appCount) apps & \(scriptCount) scripts...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 20))
+                    .focused($isFocused)
+            }
+            .padding(20)
+            .background(Color(nsColor: .textBackgroundColor))
+            .onAppear {
+                AppUtils.createMainFolder()
+                let opts = AppUtils.loadOptions()
+                includeSystemPreferences = opts.includeSystemPreferences
+                includeSystemCommands = opts.includeSystemCommands
+                onSettingsLoaded?(opts.includeSystemPreferences)
+                reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
+                refreshHistory()
+                if !displayApps.isEmpty {
+                    selectedAppPath = displayApps[0].path
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isFocused = true
+                }
+            }
+            .onChange(of: searchText) { newValue in
+                selectedIndex = 0
+                if newValue.isEmpty {
                     refreshHistory()
-                    if !displayApps.isEmpty {
-                        selectedAppPath = displayApps[0].path
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        isFocused = true
-                    }
                 }
-                .onChange(of: searchText) { newValue in
-                    selectedIndex = 0
-                    if newValue.isEmpty {
-                        refreshHistory()
-                    }
-                    if !displayApps.isEmpty {
-                        selectedAppPath = displayApps[0].path
-                    }
+                if !displayApps.isEmpty {
+                    selectedAppPath = displayApps[0].path
                 }
+            }
 
             if displayApps.isEmpty {
                 Text("No apps found")

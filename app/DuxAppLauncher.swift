@@ -31,14 +31,15 @@ struct DuxAppLauncher: App {
         Usage:
         • Cmd+Space / Cmd+Shift+Space: Toggle launcher
         • Type: Search apps/scripts
-        • ←/→: Switch tabs (Search/All/Settings/Scripts)
+        • Ctrl+Tab / Ctrl+Shift+Tab: Switch tabs
+        • ←/→: Navigate filters (All panel)
         • ↑/↓: Navigate list
         • Enter: Launch selected
         • Esc: Hide window
 
         Features:
         • Fast app search across Applications folders
-        • Recent apps history (last 5)
+        • Recent apps history (last 10)
         • Optional System Settings panes
         • Optional System Commands (Sleep, Lock, Restart, Shutdown)
         • Custom shell scripts support
@@ -106,47 +107,56 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Register global hotkey: Cmd+Space
         registerHotKey()
 
-        // Add local event monitor for arrow keys and Escape
+        // Add local event monitor for keyboard navigation
         tabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            // Ctrl+Tab = next tab, Ctrl+Shift+Tab = previous tab
+            if event.keyCode == 48 && event.modifierFlags.contains(.control) {
+                if event.modifierFlags.contains(.shift) {
+                    NotificationCenter.default.post(name: .switchTabLeft, object: nil)
+                } else {
+                    NotificationCenter.default.post(name: .switchTabRight, object: nil)
+                }
+                return nil
+            }
             // Left arrow = keyCode 123
             if event.keyCode == 123 {
                 if !(self?.isScriptsInputFocused ?? false) {
-                    NotificationCenter.default.post(name: .switchTabLeft, object: nil)
-                    return nil // Consume the event
+                    NotificationCenter.default.post(name: .navigateLeft, object: nil)
+                    return nil
                 }
             }
             // Right arrow = keyCode 124
             if event.keyCode == 124 {
                 if !(self?.isScriptsInputFocused ?? false) {
-                    NotificationCenter.default.post(name: .switchTabRight, object: nil)
-                    return nil // Consume the event
+                    NotificationCenter.default.post(name: .navigateRight, object: nil)
+                    return nil
                 }
             }
             // Down arrow = keyCode 125
             if event.keyCode == 125 {
                 if !(self?.isScriptsInputFocused ?? false) {
                     NotificationCenter.default.post(name: .searchNavigateDown, object: nil)
-                    return nil // Consume the event
+                    return nil
                 }
             }
             // Up arrow = keyCode 126
             if event.keyCode == 126 {
                 if !(self?.isScriptsInputFocused ?? false) {
                     NotificationCenter.default.post(name: .searchNavigateUp, object: nil)
-                    return nil // Consume the event
+                    return nil
                 }
             }
             // Return key = keyCode 36
             if event.keyCode == 36 {
                 if !(self?.isScriptsInputFocused ?? false) {
                     NotificationCenter.default.post(name: .searchLaunchSelected, object: nil)
-                    return nil // Consume the event
+                    return nil
                 }
             }
             // Escape key = keyCode 53
             if event.keyCode == 53 {
                 AppDelegate.hideWindow()
-                return nil // Consume the event
+                return nil
             }
             return event
         }

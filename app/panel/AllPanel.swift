@@ -6,10 +6,6 @@ struct AllPanel: View {
     @State private var selectedLetter: Character? = nil
     @State private var selectedMode: String = "all"
     @FocusState private var focusedLetter: String?
-    @State private var appCount = 0
-    @State private var scriptCount = 0
-    @State private var includeSystemPreferences = false
-    @State private var includeSystemCommands = false
     @Binding var selectedAppPath: String?
 
     var displayApps: [AppInfo] {
@@ -34,6 +30,20 @@ struct AllPanel: View {
     var availableLetters: [Character] {
         let letters = Set(apps.compactMap { $0.name.first?.uppercased().first })
         return letters.sorted()
+    }
+
+    var allFilterOptions: [String] {
+        ["all", "latest", "user"] + availableLetters.map { String($0) }
+    }
+
+    var currentFilterIndex: Int {
+        if selectedMode == "all" { return 0 }
+        if selectedMode == "latest" { return 1 }
+        if selectedMode == "user" { return 2 }
+        if let letter = selectedLetter, let idx = availableLetters.firstIndex(of: letter) {
+            return 3 + idx
+        }
+        return 0
     }
 
     var infoText: String {
@@ -164,9 +174,7 @@ struct AllPanel: View {
         }
         .onAppear {
             AppUtils.createMainFolder()
-            includeSystemPreferences = false
-            includeSystemCommands = false
-            reloadApps(false, false)
+            reloadApps()
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchNavigateDown)) { _ in
             if selectedIndex < displayApps.count - 1 {
@@ -182,7 +190,7 @@ struct AllPanel: View {
             activateSelectedApp()
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
-            reloadApps(false, false)
+            reloadApps()
         }
         .onReceive(NotificationCenter.default.publisher(for: .tabSwitched)) { _ in
             selectedIndex = 0
@@ -190,15 +198,46 @@ struct AllPanel: View {
                 selectedAppPath = displayApps[0].path
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateLeft)) { _ in
+            let newIndex = max(0, currentFilterIndex - 1)
+            selectFilter(at: newIndex)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateRight)) { _ in
+            let newIndex = min(allFilterOptions.count - 1, currentFilterIndex + 1)
+            selectFilter(at: newIndex)
+        }
     }
 
-    func reloadApps(_ includePrefs: Bool? = nil, _ includeCommands: Bool? = nil) {
-        let shouldIncludePrefs = includePrefs ?? includeSystemPreferences
-        let shouldIncludeCommands = includeCommands ?? includeSystemCommands
-        let result = AppUtils.loadApps(includeSystemPreferences: shouldIncludePrefs, includeSystemCommands: shouldIncludeCommands)
+    func selectFilter(at index: Int) {
+        guard index >= 0 && index < allFilterOptions.count else { return }
+        let option = allFilterOptions[index]
+        selectedIndex = 0
+
+        switch option {
+        case "all":
+            selectedLetter = nil
+            selectedMode = "all"
+            focusedLetter = "all"
+        case "latest":
+            selectedLetter = nil
+            selectedMode = "latest"
+            focusedLetter = "latest"
+        case "user":
+            selectedLetter = nil
+            selectedMode = "user"
+            focusedLetter = "user"
+        default:
+            if let letter = option.first {
+                selectedLetter = letter
+                selectedMode = "letter"
+                focusedLetter = option
+            }
+        }
+    }
+
+    func reloadApps() {
+        let result = AppUtils.loadApps(includeSystemPreferences: false, includeSystemCommands: false)
         apps = result.apps.filter { !$0.path.hasSuffix(".sh") }
-        appCount = result.appCount
-        scriptCount = result.scriptCount
     }
 
     func activateSelectedApp() {

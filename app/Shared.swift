@@ -14,6 +14,8 @@ extension Notification.Name {
     static let scriptsInputFocused = Notification.Name("scriptsInputFocused")
     static let scriptsInputUnfocused = Notification.Name("scriptsInputUnfocused")
     static let tabSwitched = Notification.Name("tabSwitched")
+    static let navigateLeft = Notification.Name("navigateLeft")
+    static let navigateRight = Notification.Name("navigateRight")
 }
 
 // MARK: - Constants
@@ -459,7 +461,7 @@ struct AppUtils {
             if let info = appInfo(for: path, systemCommands: systemCommands) {
                 recents.append(info)
             }
-            if recents.count == 5 {
+            if recents.count == 10 {
                 break
             }
         }
