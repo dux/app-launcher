@@ -5,6 +5,7 @@ import SwiftUI
 extension Notification.Name {
     static let focusSearchField = Notification.Name("focusSearchField")
     static let reloadApps = Notification.Name("reloadApps")
+    static let switchToSearch = Notification.Name("switchToSearch")
     static let switchTabLeft = Notification.Name("switchTabLeft")
     static let switchTabRight = Notification.Name("switchTabRight")
     static let toggleMenuBarIcon = Notification.Name("toggleMenuBarIcon")
@@ -45,14 +46,12 @@ struct AppListView: View {
     @Binding var selectedIndex: Int
     let onActivate: (AppInfo) -> Void
     let showDate: Bool
-    @Binding var selectedAppPath: String?
 
-    init(apps: [AppInfo], selectedIndex: Binding<Int>, onActivate: @escaping (AppInfo) -> Void, showDate: Bool = false, selectedAppPath: Binding<String?> = .constant(nil)) {
+    init(apps: [AppInfo], selectedIndex: Binding<Int>, onActivate: @escaping (AppInfo) -> Void, showDate: Bool = false) {
         self.apps = apps
         self._selectedIndex = selectedIndex
         self.onActivate = onActivate
         self.showDate = showDate
-        self._selectedAppPath = selectedAppPath
     }
 
     var body: some View {
@@ -66,11 +65,11 @@ struct AppListView: View {
                         selectedIndex = index
                         onActivate(app)
                     } label: {
-                        AppItemRow(app: app, isSelected: index == selectedIndex, showDate: showDate, selectedAppPath: $selectedAppPath)
+                        AppItemRow(app: app, isSelected: index == selectedIndex, showDate: showDate)
                     }
                     .buttonStyle(.plain)
                     .listRowSeparator(.hidden)
-                    .id(index)
+                    .id(app.path)
                 }
             }
             .listStyle(.plain)
@@ -82,7 +81,7 @@ struct AppListView: View {
             .onChange(of: selectedIndex) { newIndex in
                 guard newIndex >= 0, newIndex < apps.count else { return }
                 withAnimation {
-                    proxy.scrollTo(newIndex, anchor: .center)
+                    proxy.scrollTo(apps[newIndex].path, anchor: .center)
                 }
             }
         }
@@ -93,13 +92,11 @@ struct AppItemRow: View {
     let app: AppInfo
     let isSelected: Bool
     let showDate: Bool
-    @Binding var selectedAppPath: String?
 
-    init(app: AppInfo, isSelected: Bool, showDate: Bool = false, selectedAppPath: Binding<String?> = .constant(nil)) {
+    init(app: AppInfo, isSelected: Bool, showDate: Bool = false) {
         self.app = app
         self.isSelected = isSelected
         self.showDate = showDate
-        self._selectedAppPath = selectedAppPath
     }
 
     var body: some View {
@@ -141,11 +138,6 @@ struct AppItemRow: View {
                 }
             }
         )
-        .onChange(of: isSelected) { newValue in
-            if newValue {
-                selectedAppPath = app.path
-            }
-        }
         .contextMenu {
             Button("Copy Path") {
                 AppUtils.copyToClipboard(app.path)

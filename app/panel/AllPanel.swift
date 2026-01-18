@@ -6,7 +6,8 @@ struct AllPanel: View {
     @State private var selectedLetter: Character? = nil
     @State private var selectedMode: String = "all"
     @FocusState private var focusedLetter: String?
-    @Binding var selectedAppPath: String?
+
+    var isActive: Bool = false
 
     var displayApps: [AppInfo] {
         if selectedMode == "latest" {
@@ -162,7 +163,7 @@ struct AllPanel: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollViewReader { proxy in
-                        AppListView(apps: displayApps, selectedIndex: $selectedIndex, onActivate: AppUtils.activateApp, showDate: selectedMode == "latest", selectedAppPath: $selectedAppPath)
+                        AppListView(apps: displayApps, selectedIndex: $selectedIndex, onActivate: AppUtils.activateApp, showDate: selectedMode == "latest")
                             .onChange(of: selectedLetter) { _ in
                                 withAnimation {
                                     proxy.scrollTo(0, anchor: .top)
@@ -177,34 +178,42 @@ struct AllPanel: View {
             reloadApps()
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchNavigateDown)) { _ in
-            if selectedIndex < displayApps.count - 1 {
+            if isActive && selectedIndex < displayApps.count - 1 {
                 selectedIndex += 1
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchNavigateUp)) { _ in
-            if selectedIndex > 0 {
+            if isActive && selectedIndex > 0 {
                 selectedIndex -= 1
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchLaunchSelected)) { _ in
-            activateSelectedApp()
+            if isActive {
+                activateSelectedApp()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
             reloadApps()
         }
         .onReceive(NotificationCenter.default.publisher(for: .tabSwitched)) { _ in
             selectedIndex = 0
-            if !displayApps.isEmpty {
-                selectedAppPath = displayApps[0].path
+        }
+        .onChange(of: displayApps.count) { newCount in
+            if selectedIndex >= newCount {
+                selectedIndex = max(0, newCount - 1)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateLeft)) { _ in
-            let newIndex = max(0, currentFilterIndex - 1)
-            selectFilter(at: newIndex)
+            if isActive {
+                let newIndex = max(0, currentFilterIndex - 1)
+                selectFilter(at: newIndex)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateRight)) { _ in
-            let newIndex = min(allFilterOptions.count - 1, currentFilterIndex + 1)
-            selectFilter(at: newIndex)
+            if isActive {
+                let newIndex = min(allFilterOptions.count - 1, currentFilterIndex + 1)
+                selectFilter(at: newIndex)
+            }
         }
     }
 
@@ -241,8 +250,8 @@ struct AllPanel: View {
     }
 
     func activateSelectedApp() {
-        guard let path = selectedAppPath,
-              let app = displayApps.first(where: { $0.path == path }) else { return }
+        guard selectedIndex >= 0, selectedIndex < displayApps.count else { return }
+        let app = displayApps[selectedIndex]
         AppUtils.activateApp(app)
     }
 }

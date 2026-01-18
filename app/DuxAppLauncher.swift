@@ -301,6 +301,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        NotificationCenter.default.post(name: .switchToSearch, object: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(name: .focusSearchField, object: nil)
         }
@@ -318,25 +319,22 @@ struct ContentView: View {
     @State private var includeSystemPreferences = false
     @State private var includeSystemCommands = false
     @State private var showMenuBarIcon = true
-    @State private var selectedAppPath: String? = nil
 
     var body: some View {
         TabView(selection: $selectedTab) {
             SearchPanel(
+                isActive: selectedTab == 0,
                 onSettingsLoaded: { prefs in
                     includeSystemPreferences = prefs
                     showMenuBarIcon = AppUtils.loadOptions().showMenuBarIcon
-                },
-                selectedAppPath: $selectedAppPath
+                }
             )
             .tabItem {
                 Label("Search", systemImage: "magnifyingglass")
             }
             .tag(0)
 
-            AllPanel(
-                selectedAppPath: $selectedAppPath
-            )
+            AllPanel(isActive: selectedTab == 1)
             .tabItem {
                 Label("All", systemImage: "app")
             }
@@ -396,16 +394,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .switchTabRight)) { _ in
             selectedTab = (selectedTab + 1) % 4
         }
-        // bottom path render
-        // .overlay(alignment: .bottom) {
-        //     if let path = selectedAppPath {
-        //         Text(path.hasPrefix(NSHomeDirectory()) ? path.replacingOccurrences(of: NSHomeDirectory(), with: "~") : path)
-        //             .font(.system(size: 11))
-        //             .foregroundColor(.secondary)
-        //             .padding(8)
-        //             .frame(maxWidth: .infinity, alignment: .leading)
-        //             .background(Color(nsColor: .controlBackgroundColor))
-        //     }
-        // }
+        .onReceive(NotificationCenter.default.publisher(for: .switchToSearch)) { _ in
+            selectedTab = 0
+            NotificationCenter.default.post(name: .tabSwitched, object: nil)
+        }
     }
 }

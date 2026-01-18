@@ -14,8 +14,8 @@ struct SearchPanel: View {
     @State private var includeSystemCommands = false
     @FocusState private var isFocused: Bool
 
+    var isActive: Bool = true
     var onSettingsLoaded: ((Bool) -> Void)?
-    @Binding var selectedAppPath: String?
 
     var displayApps: [AppInfo] {
         if searchText.isEmpty {
@@ -51,9 +51,6 @@ struct SearchPanel: View {
                 onSettingsLoaded?(opts.includeSystemPreferences)
                 reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
                 refreshHistory()
-                if !displayApps.isEmpty {
-                    selectedAppPath = displayApps[0].path
-                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isFocused = true
                 }
@@ -63,9 +60,6 @@ struct SearchPanel: View {
                 if newValue.isEmpty {
                     refreshHistory()
                 }
-                if !displayApps.isEmpty {
-                    selectedAppPath = displayApps[0].path
-                }
             }
 
             if displayApps.isEmpty {
@@ -74,24 +68,24 @@ struct SearchPanel: View {
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                AppListView(apps: displayApps, selectedIndex: $selectedIndex, onActivate: handleAppActivation, selectedAppPath: $selectedAppPath)
+                AppListView(apps: displayApps, selectedIndex: $selectedIndex, onActivate: handleAppActivation)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusSearchField)) { _ in
             isFocused = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchNavigateDown)) { _ in
-            if selectedIndex < displayApps.count - 1 {
+            if isActive && selectedIndex < displayApps.count - 1 {
                 selectedIndex += 1
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchNavigateUp)) { _ in
-            if selectedIndex > 0 {
+            if isActive && selectedIndex > 0 {
                 selectedIndex -= 1
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchLaunchSelected)) { _ in
-            if isFocused {
+            if isActive {
                 activateSelectedApp()
             }
         }
@@ -104,8 +98,10 @@ struct SearchPanel: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .tabSwitched)) { _ in
             selectedIndex = 0
-            if !displayApps.isEmpty {
-                selectedAppPath = displayApps[0].path
+        }
+        .onChange(of: displayApps.count) { newCount in
+            if selectedIndex >= newCount {
+                selectedIndex = max(0, newCount - 1)
             }
         }
     }
@@ -120,8 +116,8 @@ struct SearchPanel: View {
     }
 
     func activateSelectedApp() {
-        guard let path = selectedAppPath,
-              let app = displayApps.first(where: { $0.path == path }) else { return }
+        guard selectedIndex >= 0, selectedIndex < displayApps.count else { return }
+        let app = displayApps[selectedIndex]
         handleAppActivation(app)
     }
 
