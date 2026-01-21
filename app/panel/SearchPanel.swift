@@ -2,20 +2,20 @@ import SwiftUI
 import Cocoa
 
 struct SearchPanel: View {
+    @ObservedObject private var appStore = AppStore.shared
     @State private var searchText = ""
-    @State private var apps: [AppInfo] = []
     @State private var history: [AppInfo] = []
     @State private var historyOrder: [String: Int] = [:]
     @State private var historyFrequencies: [String: Int] = [:]
     @State private var selectedIndex = 0
-    @State private var appCount = 0
-    @State private var scriptCount = 0
-    @State private var includeSystemPreferences = false
-    @State private var includeSystemCommands = false
     @FocusState private var isFocused: Bool
 
     var isActive: Bool = true
     var onSettingsLoaded: ((Bool) -> Void)?
+
+    private var apps: [AppInfo] {
+        appStore.apps
+    }
 
     var displayApps: [AppInfo] {
         if searchText.isEmpty {
@@ -36,7 +36,7 @@ struct SearchPanel: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 20))
                     .foregroundColor(.secondary)
-                TextField("Search \(appCount) apps & \(scriptCount) scripts...", text: $searchText)
+                TextField("Search \(appStore.appCount) apps & \(appStore.scriptCount) scripts...", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 20))
                     .focused($isFocused)
@@ -46,11 +46,9 @@ struct SearchPanel: View {
             .onAppear {
                 AppUtils.createMainFolder()
                 let opts = AppUtils.loadOptions()
-                includeSystemPreferences = opts.includeSystemPreferences
-                includeSystemCommands = opts.includeSystemCommands
                 onSettingsLoaded?(opts.includeSystemPreferences)
-                reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
                 refreshHistory()
+                selectedIndex = 0
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isFocused = true
                 }
@@ -90,11 +88,8 @@ struct SearchPanel: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
-            // Re-read options since settings may have changed
-            let opts = AppUtils.loadOptions()
-            includeSystemPreferences = opts.includeSystemPreferences
-            includeSystemCommands = opts.includeSystemCommands
-            reloadApps(opts.includeSystemPreferences, opts.includeSystemCommands)
+            appStore.reload()
+            selectedIndex = 0
         }
         .onReceive(NotificationCenter.default.publisher(for: .tabSwitched)) { _ in
             selectedIndex = 0
@@ -104,15 +99,6 @@ struct SearchPanel: View {
                 selectedIndex = max(0, newCount - 1)
             }
         }
-    }
-
-    func reloadApps(_ includePrefs: Bool? = nil, _ includeCommands: Bool? = nil) {
-        let shouldIncludePrefs = includePrefs ?? includeSystemPreferences
-        let shouldIncludeCommands = includeCommands ?? includeSystemCommands
-        let result = AppUtils.loadApps(includeSystemPreferences: shouldIncludePrefs, includeSystemCommands: shouldIncludeCommands)
-        apps = result.apps
-        appCount = result.appCount
-        scriptCount = result.scriptCount
     }
 
     func activateSelectedApp() {

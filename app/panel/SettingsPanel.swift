@@ -5,7 +5,6 @@ import Cocoa
 struct SettingsPanel: View {
     @Binding var launchAtLogin: Bool
     @Binding var includeSystemPreferences: Bool
-    @Binding var includeSystemCommands: Bool
     @Binding var showMenuBarIcon: Bool
     var onSettingsChanged: () -> Void
     
@@ -60,20 +59,7 @@ struct SettingsPanel: View {
                 Text("Include System Settings panes")
             }
             
-            HStack {
-                Image(systemName: "power")
-                    .foregroundColor(.secondary)
-                    .frame(width: 20)
-                Toggle("", isOn: $includeSystemCommands)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .onChange(of: includeSystemCommands) { _ in
-                        options.includeSystemCommands = includeSystemCommands
-                        AppUtils.saveOptions(options)
-                        onSettingsChanged()
-                    }
-                Text("Include System Commands")
-            }
+
             
             HStack {
                 Image(systemName: "folder")
@@ -138,7 +124,6 @@ struct SettingsPanel: View {
             let opts = AppUtils.loadOptions()
             includeSystemPreferences = opts.includeSystemPreferences
             showMenuBarIcon = opts.showMenuBarIcon
-            includeSystemCommands = opts.includeSystemCommands
             options = opts
             checkLoginStatus()
         }

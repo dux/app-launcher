@@ -1,13 +1,17 @@
 import SwiftUI
 
 struct AllPanel: View {
-    @State private var apps: [AppInfo] = []
+    @ObservedObject private var appStore = AppStore.shared
     @State private var selectedIndex = 0
     @State private var selectedLetter: Character? = nil
     @State private var selectedMode: String = "all"
     @FocusState private var focusedLetter: String?
 
     var isActive: Bool = false
+
+    private var apps: [AppInfo] {
+        appStore.appsWithoutScripts
+    }
 
     var displayApps: [AppInfo] {
         if selectedMode == "latest" {
@@ -18,6 +22,8 @@ struct AllPanel: View {
                 return userApps.filter { $0.name.first?.uppercased() == String(letter) }
             }
             return userApps
+        } else if selectedMode == "system" {
+            return appStore.systemPanels
         } else if let letter = selectedLetter {
             return apps.filter { $0.name.first?.uppercased() == String(letter) }
         }
@@ -34,15 +40,21 @@ struct AllPanel: View {
     }
 
     var allFilterOptions: [String] {
-        ["all", "latest", "user"] + availableLetters.map { String($0) }
+        var options = ["all", "latest", "user"]
+        if appStore.includeSystemPreferences {
+            options.append("system")
+        }
+        return options + availableLetters.map { String($0) }
     }
 
     var currentFilterIndex: Int {
         if selectedMode == "all" { return 0 }
         if selectedMode == "latest" { return 1 }
         if selectedMode == "user" { return 2 }
+        let letterOffset = appStore.includeSystemPreferences ? 4 : 3
+        if selectedMode == "system" { return 3 }
         if let letter = selectedLetter, let idx = availableLetters.firstIndex(of: letter) {
-            return 3 + idx
+            return letterOffset + idx
         }
         return 0
     }
@@ -55,6 +67,8 @@ struct AllPanel: View {
                 return "Showing \(displayApps.count) user apps starting with \(letter)"
             }
             return "Showing \(displayApps.count) user apps"
+        } else if selectedMode == "system" {
+            return "Showing \(displayApps.count) system panels"
         } else if let letter = selectedLetter {
             return "Showing \(displayApps.count) apps starting with \(letter)"
         }
@@ -123,6 +137,27 @@ struct AllPanel: View {
                 .buttonStyle(.plain)
                 .focused($focusedLetter, equals: "user")
 
+                if appStore.includeSystemPreferences {
+                    Button(action: {
+                        selectedLetter = nil
+                        selectedMode = "system"
+                        selectedIndex = 0
+                        focusedLetter = "system"
+                    }) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 10, weight: selectedMode == "system" ? .bold : .regular))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(selectedMode == "system" ? Color.accentColor.opacity(0.3) : Color.clear)
+                            )
+                            .foregroundColor(selectedMode == "system" ? .primary : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .focused($focusedLetter, equals: "system")
+                }
+
                 ForEach(availableLetters, id: \.self) { letter in
                     Button(action: {
                         selectedLetter = letter
@@ -175,7 +210,7 @@ struct AllPanel: View {
         }
         .onAppear {
             AppUtils.createMainFolder()
-            reloadApps()
+            resetToTop()
         }
         .onReceive(NotificationCenter.default.publisher(for: .searchNavigateDown)) { _ in
             if isActive && selectedIndex < displayApps.count - 1 {
@@ -193,10 +228,11 @@ struct AllPanel: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .reloadApps)) { _ in
-            reloadApps()
+            appStore.reload()
+            resetToTop()
         }
         .onReceive(NotificationCenter.default.publisher(for: .tabSwitched)) { _ in
-            selectedIndex = 0
+            resetToTop()
         }
         .onChange(of: displayApps.count) { newCount in
             if selectedIndex >= newCount {
@@ -235,6 +271,10 @@ struct AllPanel: View {
             selectedLetter = nil
             selectedMode = "user"
             focusedLetter = "user"
+        case "system":
+            selectedLetter = nil
+            selectedMode = "system"
+            focusedLetter = "system"
         default:
             if let letter = option.first {
                 selectedLetter = letter
@@ -244,9 +284,10 @@ struct AllPanel: View {
         }
     }
 
-    func reloadApps() {
-        let result = AppUtils.loadApps(includeSystemPreferences: false, includeSystemCommands: false)
-        apps = result.apps.filter { !$0.path.hasSuffix(".sh") }
+    func resetToTop() {
+        selectedIndex = 0
+        selectedLetter = nil
+        selectedMode = "all"
     }
 
     func activateSelectedApp() {

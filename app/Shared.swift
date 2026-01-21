@@ -26,6 +26,40 @@ struct AppConstants {
     static let OPTIONS_FILE = (MAIN_FOLDER as NSString).appendingPathComponent("options.yaml")
 }
 
+// MARK: - Global App Store
+class AppStore: ObservableObject {
+    static let shared = AppStore()
+    
+    @Published var apps: [AppInfo] = []
+    @Published var appCount: Int = 0
+    @Published var scriptCount: Int = 0
+    @Published var includeSystemPreferences: Bool = false
+    
+    private init() {
+        reload()
+    }
+    
+    func reload() {
+        let opts = AppUtils.loadOptions()
+        includeSystemPreferences = opts.includeSystemPreferences
+        // System commands are always included
+        let result = AppUtils.loadApps(includeSystemPreferences: opts.includeSystemPreferences, includeSystemCommands: true)
+        apps = result.apps
+        appCount = result.appCount
+        scriptCount = result.scriptCount
+    }
+    
+    // Apps without scripts (for AllPanel)
+    var appsWithoutScripts: [AppInfo] {
+        apps.filter { !$0.path.hasSuffix(".sh") }
+    }
+    
+    // System preference panes only
+    var systemPanels: [AppInfo] {
+        apps.filter { $0.path.hasSuffix(".prefPane") }
+    }
+}
+
 // MARK: - Models
 struct AppInfo {
     let name: String

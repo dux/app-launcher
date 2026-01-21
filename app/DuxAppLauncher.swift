@@ -317,7 +317,6 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var launchAtLogin = false
     @State private var includeSystemPreferences = false
-    @State private var includeSystemCommands = false
     @State private var showMenuBarIcon = true
 
     var body: some View {
@@ -343,7 +342,6 @@ struct ContentView: View {
             SettingsPanel(
                 launchAtLogin: $launchAtLogin,
                 includeSystemPreferences: $includeSystemPreferences,
-                includeSystemCommands: $includeSystemCommands,
                 showMenuBarIcon: $showMenuBarIcon,
                 onSettingsChanged: {
                     NotificationCenter.default.post(name: .reloadApps, object: nil)
