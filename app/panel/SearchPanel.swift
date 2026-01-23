@@ -36,7 +36,7 @@ struct SearchPanel: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 20))
                     .foregroundColor(.secondary)
-                TextField("Search \(appStore.appCount) apps & \(appStore.scriptCount) scripts...", text: $searchText)
+                TextField("Search \(appStore.appCount) apps, \(appStore.scriptCount) scripts\(appStore.panelCount > 0 ? ", \(appStore.panelCount) panels" : "")...", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 20))
                     .focused($isFocused)

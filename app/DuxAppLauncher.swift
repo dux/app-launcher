@@ -201,36 +201,47 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         image.lockFocus()
 
-        let font = NSFont.systemFont(ofSize: 6.5, weight: .bold)
         let color = NSColor.labelColor
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .center
+        color.setFill()
 
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: color,
-            .paragraphStyle: paragraphStyle
-        ]
+        // Draw rocket tilted 45 degrees (matching main icon)
+        let path = NSBezierPath()
 
-        // Draw 3x3 matrix: DUX / APP / LNC (uppercase, tight)
-        let letters = [
-            ["D", "U", "X"],
-            ["A", "P", "P"],
-            ["L", "N", "C"]
-        ]
+        // Rocket body - simplified for small size, tilted 45 degrees upper-right
+        // Center at (9, 9), pointing to upper-right
+        let cx: CGFloat = 9
+        let cy: CGFloat = 9
 
-        let cellSize = size / 3
-        for (row, rowLetters) in letters.enumerated() {
-            for (col, letter) in rowLetters.enumerated() {
-                let rect = NSRect(
-                    x: CGFloat(col) * cellSize - 0.5,
-                    y: size - CGFloat(row + 1) * cellSize,
-                    width: cellSize,
-                    height: cellSize
-                )
-                letter.draw(in: rect, withAttributes: attrs)
-            }
-        }
+        // Rocket body (elongated shape pointing upper-right)
+        path.move(to: NSPoint(x: cx + 5, y: cy + 5))      // Nose (upper-right)
+        path.curve(to: NSPoint(x: cx + 2, y: cy - 2),
+                   controlPoint1: NSPoint(x: cx + 4, y: cy + 2),
+                   controlPoint2: NSPoint(x: cx + 3, y: cy))
+        path.line(to: NSPoint(x: cx - 1, y: cy - 5))      // Tail
+        path.curve(to: NSPoint(x: cx - 5, y: cy - 1),
+                   controlPoint1: NSPoint(x: cx - 3, y: cy - 5),
+                   controlPoint2: NSPoint(x: cx - 5, y: cy - 3))
+        path.curve(to: NSPoint(x: cx + 5, y: cy + 5),
+                   controlPoint1: NSPoint(x: cx - 2, y: cy + 3),
+                   controlPoint2: NSPoint(x: cx + 2, y: cy + 4))
+        path.close()
+        path.fill()
+
+        // Left fin
+        let leftFin = NSBezierPath()
+        leftFin.move(to: NSPoint(x: cx - 3, y: cy - 3))
+        leftFin.line(to: NSPoint(x: cx - 7, y: cy - 3))
+        leftFin.line(to: NSPoint(x: cx - 4, y: cy))
+        leftFin.close()
+        leftFin.fill()
+
+        // Right fin
+        let rightFin = NSBezierPath()
+        rightFin.move(to: NSPoint(x: cx - 3, y: cy - 3))
+        rightFin.line(to: NSPoint(x: cx - 3, y: cy - 7))
+        rightFin.line(to: NSPoint(x: cx, y: cy - 4))
+        rightFin.close()
+        rightFin.fill()
 
         image.unlockFocus()
         image.isTemplate = true

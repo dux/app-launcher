@@ -21,7 +21,7 @@ extension Notification.Name {
 
 // MARK: - Constants
 struct AppConstants {
-    static let MAIN_FOLDER = (NSHomeDirectory() as NSString).appendingPathComponent(".dux-app-launcher")
+    static let MAIN_FOLDER = (NSHomeDirectory() as NSString).appendingPathComponent(".config/dux-launcher")
     static let HISTORY_FILE = (MAIN_FOLDER as NSString).appendingPathComponent("history.txt")
     static let OPTIONS_FILE = (MAIN_FOLDER as NSString).appendingPathComponent("options.yaml")
 }
@@ -29,16 +29,17 @@ struct AppConstants {
 // MARK: - Global App Store
 class AppStore: ObservableObject {
     static let shared = AppStore()
-    
+
     @Published var apps: [AppInfo] = []
     @Published var appCount: Int = 0
     @Published var scriptCount: Int = 0
+    @Published var panelCount: Int = 0
     @Published var includeSystemPreferences: Bool = false
-    
+
     private init() {
         reload()
     }
-    
+
     func reload() {
         let opts = AppUtils.loadOptions()
         includeSystemPreferences = opts.includeSystemPreferences
@@ -47,6 +48,7 @@ class AppStore: ObservableObject {
         apps = result.apps
         appCount = result.appCount
         scriptCount = result.scriptCount
+        panelCount = result.panelCount
     }
     
     // Apps without scripts (for AllPanel)
@@ -107,17 +109,31 @@ struct AppListView: View {
                 }
             }
             .listStyle(.plain)
+            .onAppear {
+                scrollToSelected(proxy: proxy)
+            }
             .onChange(of: apps.count) { _ in
                 if selectedIndex >= apps.count {
                     selectedIndex = max(0, apps.count - 1)
                 }
+                scrollToSelected(proxy: proxy)
             }
-            .onChange(of: selectedIndex) { newIndex in
-                guard newIndex >= 0, newIndex < apps.count else { return }
-                withAnimation {
-                    proxy.scrollTo(apps[newIndex].path, anchor: .center)
+            .onChange(of: selectedIndex) { _ in
+                scrollToSelected(proxy: proxy)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .tabSwitched)) { _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    scrollToSelected(proxy: proxy)
                 }
             }
+        }
+    }
+
+    private func scrollToSelected(proxy: ScrollViewProxy) {
+        guard selectedIndex >= 0, selectedIndex < apps.count else { return }
+        withAnimation {
+            let anchor: UnitPoint = selectedIndex == 0 ? .top : .center
+            proxy.scrollTo(apps[selectedIndex].path, anchor: anchor)
         }
     }
 }
@@ -307,10 +323,11 @@ struct AppUtils {
         try? content.write(toFile: AppConstants.OPTIONS_FILE, atomically: true, encoding: .utf8)
     }
 
-    static func loadApps(includeSystemPreferences: Bool, includeSystemCommands: Bool) -> (apps: [AppInfo], appCount: Int, scriptCount: Int) {
+    static func loadApps(includeSystemPreferences: Bool, includeSystemCommands: Bool) -> (apps: [AppInfo], appCount: Int, scriptCount: Int, panelCount: Int) {
         var allApps: [AppInfo] = []
         var appCountTemp = 0
         var scriptCountTemp = 0
+        var panelCountTemp = 0
 
         let appPaths = [
             "/Applications",
@@ -356,6 +373,7 @@ struct AppUtils {
             if let contents = try? fileManager.contentsOfDirectory(atPath: prefPanesPath) {
                 let prefPanes = contents.compactMap { fileName -> AppInfo? in
                     if fileName.hasSuffix(".prefPane") {
+                        panelCountTemp += 1
                         let fullPath = "\(prefPanesPath)/\(fileName)"
                         let appName = fileName.replacingOccurrences(of: ".prefPane", with: "")
                         let icon = getPrefPaneIcon(for: appName)
@@ -373,7 +391,7 @@ struct AppUtils {
             allApps.append(contentsOf: getSystemCommands())
         }
 
-        return (allApps.sorted { $0.name < $1.name }, appCountTemp, scriptCountTemp)
+        return (allApps.sorted { $0.name < $1.name }, appCountTemp, scriptCountTemp, panelCountTemp)
     }
 
     static func getPrefPaneIcon(for name: String) -> NSImage? {
