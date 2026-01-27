@@ -63,8 +63,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var hotKeyRef: EventHotKeyRef?
     var hotKeyRef2: EventHotKeyRef?
-    var tabMonitor: Any?
+    var localMonitor: Any?
     var isScriptsInputFocused = false
+    var currentTab = 0
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         let runningApps = NSWorkspace.shared.runningApplications
@@ -107,9 +108,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Register global hotkey: Cmd+Space
         registerHotKey()
 
+        // Track current tab for context-aware key handling
+        NotificationCenter.default.addObserver(forName: .tabSwitched, object: nil, queue: .main) { [weak self] notification in
+            if let tab = notification.object as? Int {
+                self?.currentTab = tab
+            }
+        }
+
         // Add local event monitor for keyboard navigation
-        tabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            // Ctrl+Tab = next tab, Ctrl+Shift+Tab = previous tab
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let scriptsInputFocused = self?.isScriptsInputFocused ?? false
+            let tab = self?.currentTab ?? 0
+
+            // Ctrl+Tab = next tab, Ctrl+Shift+Tab = previous tab (always works)
             if event.keyCode == 48 && event.modifierFlags.contains(.control) {
                 if event.modifierFlags.contains(.shift) {
                     NotificationCenter.default.post(name: .switchTabLeft, object: nil)
@@ -118,46 +129,54 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 return nil
             }
-            // Left arrow = keyCode 123
-            if event.keyCode == 123 {
-                if !(self?.isScriptsInputFocused ?? false) {
-                    NotificationCenter.default.post(name: .navigateLeft, object: nil)
-                    return nil
-                }
-            }
-            // Right arrow = keyCode 124
-            if event.keyCode == 124 {
-                if !(self?.isScriptsInputFocused ?? false) {
-                    NotificationCenter.default.post(name: .navigateRight, object: nil)
-                    return nil
-                }
-            }
-            // Down arrow = keyCode 125
-            if event.keyCode == 125 {
-                if !(self?.isScriptsInputFocused ?? false) {
-                    NotificationCenter.default.post(name: .searchNavigateDown, object: nil)
-                    return nil
-                }
-            }
-            // Up arrow = keyCode 126
-            if event.keyCode == 126 {
-                if !(self?.isScriptsInputFocused ?? false) {
-                    NotificationCenter.default.post(name: .searchNavigateUp, object: nil)
-                    return nil
-                }
-            }
-            // Return key = keyCode 36
-            if event.keyCode == 36 {
-                if !(self?.isScriptsInputFocused ?? false) {
-                    NotificationCenter.default.post(name: .searchLaunchSelected, object: nil)
-                    return nil
-                }
-            }
-            // Escape key = keyCode 53
+
+            // Escape key = keyCode 53 (always works)
             if event.keyCode == 53 {
                 AppDelegate.hideWindow()
                 return nil
             }
+
+            // Ctrl+R = refresh apps (always works)
+            if event.keyCode == 15 && event.modifierFlags.contains(.control) {
+                NotificationCenter.default.post(name: .reloadApps, object: nil)
+                return nil
+            }
+
+            // Skip arrow/enter handling when scripts input is focused
+            if scriptsInputFocused {
+                return event
+            }
+
+            // Left arrow = keyCode 123 (for AllPanel filter navigation)
+            if event.keyCode == 123 && tab == 1 {
+                NotificationCenter.default.post(name: .navigateLeft, object: nil)
+                return nil
+            }
+
+            // Right arrow = keyCode 124 (for AllPanel filter navigation)
+            if event.keyCode == 124 && tab == 1 {
+                NotificationCenter.default.post(name: .navigateRight, object: nil)
+                return nil
+            }
+
+            // Down arrow = keyCode 125 (for list navigation)
+            if event.keyCode == 125 && (tab == 0 || tab == 1) {
+                NotificationCenter.default.post(name: .searchNavigateDown, object: nil)
+                return nil
+            }
+
+            // Up arrow = keyCode 126 (for list navigation)
+            if event.keyCode == 126 && (tab == 0 || tab == 1) {
+                NotificationCenter.default.post(name: .searchNavigateUp, object: nil)
+                return nil
+            }
+
+            // Return key = keyCode 36 (for launching)
+            if event.keyCode == 36 && (tab == 0 || tab == 1) {
+                NotificationCenter.default.post(name: .searchLaunchSelected, object: nil)
+                return nil
+            }
+
             return event
         }
 
@@ -390,7 +409,7 @@ struct ContentView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: selectedTab) { newTab in
-            NotificationCenter.default.post(name: .tabSwitched, object: nil)
+            NotificationCenter.default.post(name: .tabSwitched, object: newTab)
             if newTab == 0 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     NotificationCenter.default.post(name: .focusSearchField, object: nil)
@@ -399,13 +418,18 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTabLeft)) { _ in
             selectedTab = selectedTab > 0 ? selectedTab - 1 : 3
+            NotificationCenter.default.post(name: .tabSwitched, object: selectedTab)
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTabRight)) { _ in
             selectedTab = (selectedTab + 1) % 4
+            NotificationCenter.default.post(name: .tabSwitched, object: selectedTab)
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchToSearch)) { _ in
             selectedTab = 0
-            NotificationCenter.default.post(name: .tabSwitched, object: nil)
+            NotificationCenter.default.post(name: .tabSwitched, object: 0)
+        }
+        .onAppear {
+            NotificationCenter.default.post(name: .tabSwitched, object: 0)
         }
     }
 }

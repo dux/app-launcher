@@ -25,7 +25,7 @@ struct SearchPanel: View {
             return Array(apps.prefix(200))
         }
         let filtered = apps.filter { app in
-            app.name.localizedCaseInsensitiveContains(searchText)
+            app.name.lowercased().contains(searchText.lowercased())
         }
         return Array(sortApps(filtered, query: searchText).prefix(200))
     }
