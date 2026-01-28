@@ -33,6 +33,10 @@ struct ScriptsPanel: View {
                     List(scripts, id: \.self, selection: $selectedScript) { script in
                         Text(script)
                             .font(.system(size: 12))
+                            .onTapGesture {
+                                selectedScript = script
+                                loadScript(script)
+                            }
                     }
                     .listStyle(.plain)
                     .frame(minWidth: 120)

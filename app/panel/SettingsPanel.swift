@@ -27,6 +27,15 @@ struct SettingsPanel: View {
                         toggleLaunchAtLogin(newValue)
                     }
                 Text("Launch at login")
+                Spacer()
+                Button(action: {
+                    openLoginItemsSettings()
+                }) {
+                    Text("Open System Settings")
+                        .font(.system(size: 11))
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
             }
             
             HStack {
@@ -168,5 +177,11 @@ struct SettingsPanel: View {
     func openAppFolder() {
         let folderUrl = URL(fileURLWithPath: AppConstants.MAIN_FOLDER)
         NSWorkspace.shared.open(folderUrl)
+    }
+
+    func openLoginItemsSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }
