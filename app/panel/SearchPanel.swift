@@ -10,24 +10,23 @@ struct SearchPanel: View {
     @State private var selectedIndex = 0
     @FocusState private var isFocused: Bool
 
-    var isActive: Bool = true
+    let isActive: Bool
     var onSettingsLoaded: ((Bool) -> Void)?
 
-    private var apps: [AppInfo] {
-        appStore.apps
-    }
-
     var displayApps: [AppInfo] {
-        if searchText.isEmpty {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        let allApps = appStore.apps
+        if query.isEmpty {
             if !history.isEmpty {
                 return Array(history.prefix(10))
             }
-            return Array(apps.prefix(200))
+            return Array(allApps.prefix(200))
         }
-        let filtered = apps.filter { app in
-            app.name.lowercased().contains(searchText.lowercased())
+        let loweredQuery = query.lowercased()
+        let filtered = allApps.filter { app in
+            app.name.lowercased().contains(loweredQuery)
         }
-        return Array(sortApps(filtered, query: searchText).prefix(200))
+        return Array(sortApps(filtered, query: query).prefix(200))
     }
 
     var body: some View {

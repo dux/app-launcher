@@ -7,7 +7,7 @@ struct AllPanel: View {
     @State private var selectedMode: String = "all"
     @FocusState private var focusedLetter: String?
 
-    var isActive: Bool = false
+    let isActive: Bool
 
     private var apps: [AppInfo] {
         appStore.appsWithoutScripts

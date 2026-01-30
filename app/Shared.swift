@@ -109,6 +109,7 @@ struct AppListView: View {
                 }
             }
             .listStyle(.plain)
+            .id(apps.map { $0.path }.joined())
             .onAppear {
                 scrollToSelected(proxy: proxy)
             }
